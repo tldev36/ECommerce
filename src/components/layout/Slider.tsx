@@ -25,7 +25,7 @@ const banners = [
   },
 ];
 
-export default function HeroSlider() {
+export default function Sliders() {
   const settings = {
     dots: true,
     infinite: true,
@@ -39,7 +39,7 @@ export default function HeroSlider() {
   };
 
   return (
-    <Slider {...settings} className="hero-slider">
+    <Slider {...settings} >
       {banners.map((b, i) => (
         <div key={i} className="relative h-[500px]">
           <div

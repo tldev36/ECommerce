@@ -1,5 +1,5 @@
 // src/app/layout.tsx
-import "../styles/globals.css";
+import './globals.css';
 
 export default function RootLayout({
   children,
@@ -7,9 +7,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="vi">
       <body>
-        {children}
+        {children}  
       </body>
     </html>
   );

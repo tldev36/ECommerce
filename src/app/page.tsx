@@ -1,6 +1,16 @@
-// src/app/page.tsx
-import PublicHome from "./(public)/page";
+'use client'
 
-export default function Home() {
-  return <PublicHome />;
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+export default function app() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.push("/Customer");
+  }, [router]);
+
+  return (
+    <></>
+  );
 }

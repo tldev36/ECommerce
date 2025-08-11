@@ -1,4 +1,3 @@
-// src/data/products.ts
 export type Product = {
   id: string;
   name: string;
@@ -7,10 +6,11 @@ export type Product = {
   unit: string;
   image: string;
   short: string;
+  category: string;        // <-- thêm trường category
   featured?: boolean;
-  discount?: number; // % giảm giá
-  isNew?: boolean; // sản phẩm mới
-  isBestSeller?: boolean; // bán chạy
+  discount?: number;       // % giảm giá
+  isNew?: boolean;         // sản phẩm mới
+  isBestSeller?: boolean;  // bán chạy
 };
 
 export const products: Product[] = [
@@ -22,8 +22,9 @@ export const products: Product[] = [
     unit: "kg",
     image: "/images/apple.jpg",
     short: "Táo đỏ, giòn, không thuốc",
+    category: "Trái cây",    // thêm category
     featured: true,
-    discount: 10, // giảm 10%
+    discount: 10,
     isNew: true,
   },
   {
@@ -34,6 +35,7 @@ export const products: Product[] = [
     unit: "kg",
     image: "/images/rice.jpg",
     short: "Gạo thơm, hạt dài, cho cơm dẻo",
+    category: "Gạo",         // thêm category
     featured: true,
     isBestSeller: true,
   },
@@ -45,6 +47,7 @@ export const products: Product[] = [
     unit: "kg",
     image: "/images/carrot.jpg",
     short: "Cà rốt giòn, ngọt tự nhiên",
+    category: "Rau củ",      // thêm category
     discount: 5,
   },
   {
@@ -55,6 +58,7 @@ export const products: Product[] = [
     unit: "kg",
     image: "/images/carrot.jpg",
     short: "Xoài vàng, ngọt thanh",
+    category: "Trái cây",    // thêm category
     isNew: true,
     isBestSeller: true,
   },
@@ -66,51 +70,9 @@ export const products: Product[] = [
     unit: "kg",
     image: "/images/carrot.jpg",
     short: "Cơm vàng, hạt lép, thơm béo",
+    category: "Trái cây",    // thêm category
     discount: 15,
     featured: true,
   },
-  {
-    id: "p6",
-    name: "Sầu riêng Monthong",
-    slug: "sau-rieng-monthong",
-    price: 180000,
-    unit: "kg",
-    image: "/images/carrot.jpg",
-    short: "Cơm vàng, hạt lép, thơm béo",
-    discount: 15,
-    featured: true,
-  },
-  {
-    id: "p7",
-    name: "Sầu riêng Monthong",
-    slug: "sau-rieng-monthong",
-    price: 180000,
-    unit: "kg",
-    image: "/images/carrot.jpg",
-    short: "Cơm vàng, hạt lép, thơm béo",
-    discount: 15,
-    featured: true,
-  },
-  {
-    id: "p8",
-    name: "Sầu riêng Monthong",
-    slug: "sau-rieng-monthong",
-    price: 180000,
-    unit: "kg",
-    image: "/images/carrot.jpg",
-    short: "Cơm vàng, hạt lép, thơm béo",
-    discount: 15,
-    featured: true,
-  },
-  {
-    id: "p9",
-    name: "Sầu riêng Monthong",
-    slug: "sau-rieng-monthong",
-    price: 180000,
-    unit: "kg",
-    image: "/images/carrot.jpg",
-    short: "Cơm vàng, hạt lép, thơm béo",
-    discount: 15,
-    featured: true,
-  },
+  // các sản phẩm khác thêm category tương tự...
 ];
