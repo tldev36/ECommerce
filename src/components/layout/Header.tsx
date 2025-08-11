@@ -17,18 +17,18 @@ export default function Header() {
   const router = useRouter();
 
   const navItems = [
-    { name: "Trang chủ", href: "/" },
+    { name: "Trang chủ", href: "/Customer/Home" },
     {
       name: "Sản phẩm",
       href: "/",
       subMenu: [
-        { name: "Phân bón", href: "/" },
-        { name: "Hạt giống", href: "/" },
-        { name: "Gạo", href: "/" },
+        { name: "Phân bón", href: "/Customer/ListProduct" },
+        { name: "Hạt giống", href: "/Customer/ListProduct" },
+        { name: "Gạo", href: "/Customer/ListProduct" },
       ],
     },
-    { name: "Giới thiệu", href: "/" },
-    { name: "Liên hệ", href: "/" },
+    { name: "Giới thiệu", href: "/Customer/ListProduct" },
+    { name: "Liên hệ", href: "/Customer/ListProduct" },
   ];
 
   const navItemClass = (menu: string) =>
