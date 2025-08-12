@@ -31,7 +31,12 @@ export default function ProductDetail() {
 
   const relatedProducts = [
     { id: 2, name: "Gạo Lài Sữa", price: 28000, image: "/images/rice.jpg" },
-    { id: 3, name: "Gạo Nàng Thơm Chợ Đào", price: 30000, image: "/images/apple.jpg" },
+    {
+      id: 3,
+      name: "Gạo Nàng Thơm Chợ Đào",
+      price: 30000,
+      image: "/images/apple.jpg",
+    },
     { id: 4, name: "Gạo Hữu Cơ", price: 40000, image: "/images/apple.jpg" },
     { id: 5, name: "Gạo Japonica", price: 35000, image: "/images/apple.jpg" },
   ];
@@ -41,14 +46,20 @@ export default function ProductDetail() {
   const [showAllReviews, setShowAllReviews] = useState(false);
 
   // Hàm render sao
-  const renderStars = (rating: number, clickable = false, onClick?: (star: number) => void) => {
+  const renderStars = (
+    rating: number,
+    clickable = false,
+    onClick?: (star: number) => void
+  ) => {
     return Array.from({ length: 5 }, (_, i) => {
       const starNumber = i + 1;
       return (
         <FontAwesomeIcon
           key={starNumber}
           icon={starNumber <= Math.floor(rating) ? fasStar : farStar}
-          className={`text-yellow-400 w-5 h-5 ${clickable ? "cursor-pointer" : ""}`}
+          className={`text-yellow-400 w-5 h-5 ${
+            clickable ? "cursor-pointer" : ""
+          }`}
           onClick={clickable ? () => onClick && onClick(starNumber) : undefined}
         />
       );
@@ -109,7 +120,9 @@ export default function ProductDetail() {
               </button>
               <span className="px-4">{quantity}</span>
               <button
-                onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
+                onClick={() =>
+                  setQuantity((q) => Math.min(product.stock, q + 1))
+                }
                 className="px-3 py-1 text-lg hover:bg-gray-200"
               >
                 +
@@ -120,11 +133,11 @@ export default function ProductDetail() {
           {/* Nút hành động */}
           <div className="flex flex-col sm:flex-row gap-4">
             <button className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2">
-              <FontAwesomeIcon icon={faBolt} className="w-4 h-4"/>
+              <FontAwesomeIcon icon={faBolt} className="w-4 h-4" />
               Mua ngay
             </button>
             <button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2">
-              <FontAwesomeIcon icon={faShoppingCart} className="w-4 h-4"/>
+              <FontAwesomeIcon icon={faShoppingCart} className="w-4 h-4" />
               Thêm vào giỏ
             </button>
           </div>
@@ -177,9 +190,21 @@ export default function ProductDetail() {
         {/* Danh sách đánh giá */}
         <div className="space-y-4">
           {[
-            { name: "Nguyễn Văn A", stars: 5, comment: "Gạo thơm, dẻo, ăn rất ngon. Đóng gói cẩn thận." },
-            { name: "Trần Thị B", stars: 4, comment: "Chất lượng tốt, nhưng giao hàng hơi chậm." },
-            { name: "Lê Văn C", stars: 5, comment: "Đúng như mô tả, chất lượng tuyệt vời." },
+            {
+              name: "Nguyễn Văn A",
+              stars: 5,
+              comment: "Gạo thơm, dẻo, ăn rất ngon. Đóng gói cẩn thận.",
+            },
+            {
+              name: "Trần Thị B",
+              stars: 4,
+              comment: "Chất lượng tốt, nhưng giao hàng hơi chậm.",
+            },
+            {
+              name: "Lê Văn C",
+              stars: 5,
+              comment: "Đúng như mô tả, chất lượng tuyệt vời.",
+            },
             { name: "Phạm Thị D", stars: 3, comment: "Ổn, nhưng giá hơi cao." },
           ]
             .slice(0, showAllReviews ? undefined : 2) // nếu showAllReviews = false thì chỉ lấy 2 item
@@ -204,7 +229,6 @@ export default function ProductDetail() {
           </div>
         </div>
 
-
         {/* Form viết đánh giá */}
         <div className="mt-8 border-t pt-6">
           <h3 className="text-lg font-semibold mb-4">Viết đánh giá của bạn</h3>
@@ -228,7 +252,6 @@ export default function ProductDetail() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }

@@ -1,16 +1,14 @@
-'use client'
+"use client";
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-export default function app() {
+export default function Main() {
   const router = useRouter();
 
   useEffect(() => {
     router.push("/Customer");
   }, [router]);
 
-  return (
-    <></>
-  );
+  return <></>;
 }
