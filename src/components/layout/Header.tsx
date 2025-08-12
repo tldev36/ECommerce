@@ -28,7 +28,7 @@ export default function Header() {
       ],
     },
     { name: "Giới thiệu", href: "/Customer/ListProduct" },
-    { name: "Liên hệ", href: "/Customer/ListProduct" },
+    { name: "Liên hệ", href: "/Customer/ProductDetail" },
   ];
 
   const navItemClass = (menu: string) =>
@@ -104,7 +104,7 @@ export default function Header() {
         {/* Icon giỏ hàng + avatar */}
         <div className="flex items-center space-x-4">
           <Link
-            href="/cart"
+            href="/Customer/Cart"
             className="relative text-white hover:text-green-200 transition"
           >
             <ShoppingCartIcon className="w-6 h-6" />
@@ -125,19 +125,20 @@ export default function Header() {
             {openUserMenu && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-50">
                 <Link
-                  href="/profile"
+                  href="/Customer/Profile"
+                  
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
                 >
                   Thông tin cá nhân
                 </Link>
                 <Link
-                  href="/login"
+                  href="/Auth/Login"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
                 >
                   Đăng nhập
                 </Link>
                 <Link
-                  href="/register"
+                  href="/Auth/Register"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
                 >
                   Đăng ký

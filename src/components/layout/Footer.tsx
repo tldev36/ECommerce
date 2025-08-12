@@ -27,13 +27,13 @@ export default function Footer() {
                     <h3 className="font-semibold text-lg mb-3 text-white">Liên hệ</h3>
                     <ul className="space-y-2 text-white">
                         <li className="flex items-center gap-2">
-                            <FontAwesomeIcon icon={faPhone} /> 0123 456 789
+                            <FontAwesomeIcon icon={faPhone} className="w-4 h-4"/> 0123 456 789
                         </li>
                         <li className="flex items-center gap-2">
-                            <FontAwesomeIcon icon={faEnvelope} /> contact@nongsan.vn
+                            <FontAwesomeIcon icon={faEnvelope} className="w-4 h-4"/> contact@nongsan.vn
                         </li>
                         <li className="flex items-center gap-2">
-                            <FontAwesomeIcon icon={faMapMarkerAlt} /> Hà Nội, Việt Nam
+                            <FontAwesomeIcon icon={faMapMarkerAlt} className="w-4 h-4"/> Hà Nội, Việt Nam
                         </li>
                     </ul>
                 </div>
@@ -63,13 +63,13 @@ export default function Footer() {
                     </h3>
                     <div className="flex space-x-4 text-white">
                         <a href="#" className="hover:text-blue-500">
-                            <FontAwesomeIcon icon={faFacebookF} size="lg" />
+                            <FontAwesomeIcon icon={faFacebookF} size="lg" className="w-4 h-4"/>
                         </a>
                         <a href="#" className="hover:text-pink-500">
-                            <FontAwesomeIcon icon={faInstagram} size="lg" />
+                            <FontAwesomeIcon icon={faInstagram} size="lg" className="w-4 h-4"/>
                         </a>
                         <a href="#" className="hover:text-red-500">
-                            <FontAwesomeIcon icon={faYoutube} size="lg" />
+                            <FontAwesomeIcon icon={faYoutube} size="lg" className="w-4 h-4" />
                         </a>
                     </div>
                 </div>

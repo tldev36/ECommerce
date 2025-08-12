@@ -28,7 +28,7 @@ export default function FloatingButtons() {
         rel="noopener noreferrer"
         className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition"
       >
-        <FontAwesomeIcon icon={faMessage} size="lg" />
+        <FontAwesomeIcon icon={faMessage} size="lg" className="w-5 h-5"/>
       </a>
 
       {/* Nút Lên đầu */}
@@ -37,7 +37,7 @@ export default function FloatingButtons() {
           onClick={scrollToTop}
           className="bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition"
         >
-          <FontAwesomeIcon icon={faChevronUp} size="lg" />
+          <FontAwesomeIcon icon={faChevronUp} size="lg" className="w-4 h-4"/>
         </button>
       )}
     </div>

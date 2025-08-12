@@ -7,7 +7,7 @@ export default function Customer() {
   const router = useRouter();
 
   useEffect(() => {
-    router.push('/Customer/ListProduct');
+    router.push('/Customer/Home');
   }, [router]);
 
   return null; // hoặc <></> không cần div thừa
