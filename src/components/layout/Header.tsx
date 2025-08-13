@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -14,7 +14,12 @@ export default function Header() {
   const [openMenu, setOpenMenu] = useState<string>("");
   const [search, setSearch] = useState("");
   const [openUserMenu, setOpenUserMenu] = useState(false);
+
   const router = useRouter();
+
+  // Ref cho menu chính và menu user
+  const navRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const navItems = [
     { name: "Trang chủ", href: "/Customer/Home" },
@@ -38,6 +43,20 @@ export default function Header() {
       : "text-white hover:bg-gradient-to-r hover:from-green-600 hover:to-green-500 hover:text-white hover:shadow-md"
     }`;
 
+  // Đóng menu khi click ra ngoài
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (navRef.current && !navRef.current.contains(event.target as Node)) {
+        setOpenMenu("");
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setOpenUserMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <header className="bg-green-700 shadow-md fixed top-0 left-0 w-full z-50">
       <div className="container mx-auto flex items-center justify-between px-6 py-3 gap-4 ">
@@ -50,7 +69,7 @@ export default function Header() {
         </Link>
 
         {/* Menu */}
-        <nav className="flex space-x-2 relative">
+        <nav ref={navRef} className="flex space-x-2 relative">
           {navItems.map((item) => {
             const hasSubMenu = !!item.subMenu;
             const isOpen = openMenu === item.name;
@@ -66,8 +85,8 @@ export default function Header() {
                 }
               >
                 <div className="flex items-center justify-between cursor-pointer w-full">
-                  <span className="font-medium text-base ">{item.name}</span>
-                  {hasSubMenu && <ChevronDownIcon className="w-4 h-4 ml-1" strokeWidth={3}  />}
+                  <span className="font-medium text-base">{item.name}</span>
+                  {hasSubMenu && <ChevronDownIcon className="w-4 h-4 ml-1" strokeWidth={3} />}
                 </div>
 
                 {/* Menu cấp 2 */}
@@ -114,7 +133,7 @@ export default function Header() {
           </Link>
 
           {/* Avatar + Dropdown */}
-          <div className="relative">
+          <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setOpenUserMenu(!openUserMenu)}
               className="text-white hover:text-green-200 transition"
@@ -126,10 +145,21 @@ export default function Header() {
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-50">
                 <Link
                   href="/Customer/Profile"
-                  
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
                 >
                   Thông tin cá nhân
+                </Link>
+                <Link
+                  href="/Customer/OrderHistory"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
+                >
+                  Lịch sử mua hàng
+                </Link>
+                <Link
+                  href="/Customer/Wishlist"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
+                >
+                  Danh sách yêu thích
                 </Link>
                 <Link
                   href="/Auth/Login"

@@ -1,9 +1,21 @@
-// src/components/product/ProductCard.tsx
+"use client";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Product } from "@/data/products";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faHeart as faSolidHeart } from "@fortawesome/free-solid-svg-icons";
+import { faHeart as faRegularHeart } from "@fortawesome/free-regular-svg-icons";
 
 export default function ProductCard({ product }: { product: Product }) {
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  const toggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault(); // Ngăn click vào Link
+    setIsFavorite((prev) => !prev);
+    // TODO: Ghi dữ liệu vào localStorage hoặc API
+  };
+
   return (
     <Link href={`/products/${product.slug}`} className="block">
       <div className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white">
@@ -16,6 +28,18 @@ export default function ProductCard({ product }: { product: Product }) {
             style={{ objectFit: "cover" }}
           />
 
+          {/* Nút yêu thích */}
+          <button
+            onClick={toggleFavorite}
+            className="absolute top-2 right-2 w-9 h-9 flex items-center justify-center bg-white rounded-full shadow hover:bg-gray-100"
+          >
+            <FontAwesomeIcon
+              icon={isFavorite ? faSolidHeart : faRegularHeart}
+              className={`w-4 h-4 ${isFavorite ? "text-red-500" : "text-gray-600"}`}
+            />
+          </button>
+
+
           {/* Badge giảm giá */}
           {product.discount && (
             <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
@@ -25,7 +49,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
           {/* Badge mới */}
           {product.isNew && (
-            <span className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
+            <span className="absolute top-10 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
               Mới
             </span>
           )}
