@@ -22,18 +22,18 @@ export default function Header() {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const navItems = [
-    { name: "Trang chủ", href: "/Customer/Home" },
+    { name: "Trang chủ", href: "/customer/home" },
     {
       name: "Sản phẩm",
       href: "/",
       subMenu: [
-        { name: "Phân bón", href: "/Customer/ListProduct" },
-        { name: "Hạt giống", href: "/Customer/ListProduct" },
-        { name: "Gạo", href: "/Customer/ListProduct" },
+        { name: "Phân bón", href: "/customer/list-product" },
+        { name: "Hạt giống", href: "/customer/list-product" },
+        { name: "Gạo", href: "/customer/list-product" },
       ],
     },
-    { name: "Giới thiệu", href: "/Customer/ListProduct" },
-    { name: "Liên hệ", href: "/Customer/ProductDetail" },
+    { name: "Giới thiệu", href: "/customer/list-product" },
+    { name: "Liên hệ", href: "/customer/product-detail" },
   ];
 
   const navItemClass = (menu: string) =>
@@ -123,7 +123,7 @@ export default function Header() {
         {/* Icon giỏ hàng + avatar */}
         <div className="flex items-center space-x-4">
           <Link
-            href="/Customer/Cart"
+            href="/customer/cart"
             className="relative text-white hover:text-green-200 transition"
           >
             <ShoppingCartIcon className="w-6 h-6" />
@@ -144,31 +144,31 @@ export default function Header() {
             {openUserMenu && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-50">
                 <Link
-                  href="/Customer/Profile"
+                  href="/customer/profile"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
                 >
                   Thông tin cá nhân
                 </Link>
                 <Link
-                  href="/Customer/OrderHistory"
+                  href="/customer/order-history"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
                 >
                   Lịch sử mua hàng
                 </Link>
                 <Link
-                  href="/Customer/Wishlist"
+                  href="/customer/wishlist"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
                 >
                   Danh sách yêu thích
                 </Link>
                 <Link
-                  href="/Auth/Login"
+                  href="/auth/login"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
                 >
                   Đăng nhập
                 </Link>
                 <Link
-                  href="/Auth/Register"
+                  href="/auth/register"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
                 >
                   Đăng ký

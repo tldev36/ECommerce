@@ -202,7 +202,7 @@ export default function CartPage() {
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-green-600 hover:bg-green-700"
             } transition`}
-            onClick={() => router.push("/Customer/Checkout")}
+            onClick={() => router.push("/customer/checkout")}
           >
             Thanh toán
           </button>

@@ -7,7 +7,7 @@ export default function Main() {
   const router = useRouter();
 
   useEffect(() => {
-    router.push("/Customer");
+    router.push("/customer");
   }, [router]);
 
   return <></>;
