@@ -197,11 +197,10 @@ export default function CartPage() {
           </p>
           <button
             disabled={cartItems.length === 0}
-            className={`mt-2 px-6 py-3 rounded-lg text-white font-semibold ${
-              cartItems.length === 0
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-green-600 hover:bg-green-700"
-            } transition`}
+            className={`mt-2 px-6 py-3 rounded-lg text-white font-semibold ${cartItems.length === 0
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-green-600 hover:bg-green-700"
+              } transition`}
             onClick={() => router.push("/customer/checkout")}
           >
             Thanh toán
