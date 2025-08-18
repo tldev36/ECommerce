@@ -12,6 +12,8 @@ model categories {
   id         Int        @id @default(autoincrement())
   name       String
   slug       String     @unique
+  image      String?
+  status     Boolean    @default(true)
   created_at DateTime?  @default(now()) @db.Timestamp(6)
   updated_at DateTime?  @default(now()) @db.Timestamp(6)
   products   products[]
@@ -22,6 +24,7 @@ model products {
   name           String
   slug           String      @unique
   price          Decimal     @db.Decimal(10, 2)
+  cost_price     Decimal     @db.Decimal(10, 2)
   unit           String
   image          String
   short          String?

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBell, faMagnifyingGlass, faCheck, faUserPlus, faChartLine, faEnvelope } from "@fortawesome/free-solid-svg-icons";
+import Link from "next/link";
 
 interface Notification {
     id: number;
@@ -160,7 +161,9 @@ export default function Header() {
                     {isAvatarOpen && (
                         <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 shadow-lg rounded-md z-50">
                             <ul className="py-2 text-sm text-gray-700">
-                                <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">Trang người dùng</li>
+                                <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">
+                                    <Link href="/customer/home">Trang người dùng</Link>
+                                </li>
                                 <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">Hồ sơ</li>
                                 <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">Đăng xuất</li>
                             </ul>
