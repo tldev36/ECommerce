@@ -75,10 +75,10 @@ export default function CategoryPage() {
                   <td className="p-3 border-b">{c.name}</td>
 
                   <td className="p-3 border-b">
-                    {new Date(c.created_at).toLocaleDateString("vi-VN")}
+                    {/* {new Date(c.created_at).toLocaleDateString("vi-VN")} */}
                   </td>
                   <td className="p-3 border-b">
-                    {new Date(c.updated_at).toLocaleDateString("vi-VN")}
+                    {/* {new Date(c.updated_at).toLocaleDateString("vi-VN")} */}
                   </td>
                   <td className="p-3 border-b">
                     {c.status ? (

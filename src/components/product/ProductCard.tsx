@@ -2,7 +2,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import type { Product } from "@/data/products";
+import { Product } from "@/types/product";
+
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart as faSolidHeart } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faRegularHeart } from "@fortawesome/free-regular-svg-icons";
@@ -11,10 +12,15 @@ export default function ProductCard({ product }: { product: Product }) {
   const [isFavorite, setIsFavorite] = useState(false);
 
   const toggleFavorite = (e: React.MouseEvent) => {
-    e.preventDefault(); // Ngăn click vào Link
+    e.preventDefault();
     setIsFavorite((prev) => !prev);
-    // TODO: Ghi dữ liệu vào localStorage hoặc API
+    // TODO: Lưu localStorage hoặc gọi API
   };
+
+  // Giá sau giảm (nếu có discount %)
+  const finalPrice = product.discount
+    ? product.price - (product.price * product.discount) / 100
+    : product.price;
 
   return (
     <Link href={`/products/${product.slug}`} className="block">
@@ -22,7 +28,7 @@ export default function ProductCard({ product }: { product: Product }) {
         {/* Ảnh + badge */}
         <div className="relative w-full h-48">
           <Image
-            src={product.image}
+            src={"/images/products/" + product.image}
             alt={product.name}
             fill
             style={{ objectFit: "cover" }}
@@ -39,23 +45,22 @@ export default function ProductCard({ product }: { product: Product }) {
             />
           </button>
 
-
           {/* Badge giảm giá */}
-          {product.discount && (
+          {product.discount && product.discount > 0 && (
             <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
               -{product.discount}%
             </span>
           )}
 
           {/* Badge mới */}
-          {product.isNew && (
+          {product.is_new && (
             <span className="absolute top-10 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
               Mới
             </span>
           )}
 
           {/* Badge bán chạy */}
-          {product.isBestSeller && (
+          {product.is_best_seller && (
             <span className="absolute bottom-2 left-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded">
               Bán chạy
             </span>
@@ -65,10 +70,26 @@ export default function ProductCard({ product }: { product: Product }) {
         {/* Thông tin sản phẩm */}
         <div className="p-3">
           <h3 className="text-sm font-semibold line-clamp-2">{product.name}</h3>
-          <p className="text-xs text-gray-500 mt-1">{product.short}</p>
+          {product.short && (
+            <p className="text-xs text-gray-500 mt-1">{product.short}</p>
+          )}
           <div className="mt-3 flex items-center justify-between">
             <div className="text-sm font-medium">
-              {product.price.toLocaleString()} ₫ / {product.unit}
+              {product.discount && product.discount > 0 ? (
+                <div>
+                  <span className="text-red-600 font-bold">
+                    {finalPrice.toLocaleString()} ₫
+                  </span>
+                  <span className="line-through text-gray-400 ml-2">
+                    {product.price.toLocaleString()} ₫
+                  </span>
+                  <span className="ml-1">/ {product.unit}</span>
+                </div>
+              ) : (
+                <span>
+                  {product.price.toLocaleString()} ₫ / {product.unit}
+                </span>
+              )}
             </div>
             <button className="text-sm bg-green-600 text-white px-3 py-1 rounded-md hover:bg-green-700">
               Thêm

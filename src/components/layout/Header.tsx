@@ -9,11 +9,15 @@ import {
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 import Image from "next/image";
+import { Category } from "@/types/category";
+import axios from "axios";
+
 
 export default function Header() {
   const [openMenu, setOpenMenu] = useState<string>("");
   const [search, setSearch] = useState("");
   const [openUserMenu, setOpenUserMenu] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
 
   const router = useRouter();
 
@@ -21,19 +25,27 @@ export default function Header() {
   const navRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
+// Fetch categories từ API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const res = await axios.get<Category[]>("/api/categories");
+      setCategories(res.data);
+    };
+    fetchCategories();
+  }, []);
+
   const navItems = [
     { name: "Trang chủ", href: "/customer/home" },
     {
       name: "Sản phẩm",
-      href: "/",
-      subMenu: [
-        { name: "Phân bón", href: "/customer/list-product" },
-        { name: "Hạt giống", href: "/customer/list-product" },
-        { name: "Gạo", href: "/customer/list-product" },
-      ],
+      href: "/customer/list-product",
+      subMenu: categories.map((c) => ({
+        name: c.name,
+        href: `/customer/list-product/${c.slug}`,
+      })),
     },
-    { name: "Giới thiệu", href: "/customer/list-product" },
-    { name: "Liên hệ", href: "/customer/product-detail" },
+    { name: "Giới thiệu", href: "/customer/about" },
+    { name: "Liên hệ", href: "/customer/contact" },
   ];
 
   const navItemClass = (menu: string) =>
