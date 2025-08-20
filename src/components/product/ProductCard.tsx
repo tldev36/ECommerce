@@ -3,12 +3,14 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Product } from "@/types/product";
+import { useCart } from "@/context/CartContext";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart as faSolidHeart } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faRegularHeart } from "@fortawesome/free-regular-svg-icons";
 
 export default function ProductCard({ product }: { product: Product }) {
+  const { addItem } = useCart();
   const [isFavorite, setIsFavorite] = useState(false);
 
   const toggleFavorite = (e: React.MouseEvent) => {
@@ -17,13 +19,17 @@ export default function ProductCard({ product }: { product: Product }) {
     // TODO: Lưu localStorage hoặc gọi API
   };
 
-  // Giá sau giảm (nếu có discount %)
   const finalPrice = product.discount
     ? product.price - (product.price * product.discount) / 100
     : product.price;
 
+
+
   return (
-    <Link href={`/products/${product.slug}`} className="block">
+    <Link
+      href={`/customer/product/${product.slug}`}
+      className="block bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden"
+    >
       <div className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white">
         {/* Ảnh + badge */}
         <div className="relative w-full h-48">
@@ -91,7 +97,16 @@ export default function ProductCard({ product }: { product: Product }) {
                 </span>
               )}
             </div>
-            <button className="text-sm bg-green-600 text-white px-3 py-1 rounded-md hover:bg-green-700">
+
+            {/* Nút thêm */}
+            <button
+              onClick={(e) => {
+                e.preventDefault(); // để không follow link
+                addItem(product);    // ✅ thêm vào giỏ hàng
+                alert(`Đã thêm ${product.name} vào giỏ hàng!`); // ✅ thông báo
+              }}
+              className="text-sm bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 transition"
+            >
               Thêm
             </button>
           </div>

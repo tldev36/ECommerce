@@ -1,5 +1,11 @@
 import ListProduct from "@/components/product/ListProduct";
 
-export default function ProductByCategoryPage({ params }: { params: { slug: string } }) {
-  return <ListProduct slug={params.slug} />;
+export default async function ProductByCategoryPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params; // ✅ phải await
+
+  return <ListProduct slug={slug} />;
 }

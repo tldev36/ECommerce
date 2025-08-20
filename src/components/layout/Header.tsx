@@ -11,6 +11,7 @@ import {
 import Image from "next/image";
 import { Category } from "@/types/category";
 import axios from "axios";
+import { useCart } from "@/context/CartContext";
 
 
 export default function Header() {
@@ -18,14 +19,18 @@ export default function Header() {
   const [search, setSearch] = useState("");
   const [openUserMenu, setOpenUserMenu] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
+  
 
   const router = useRouter();
+
+  const { cart } = useCart();
+  const totalItems = cart.length;
 
   // Ref cho menu chính và menu user
   const navRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-// Fetch categories từ API
+  // Fetch categories từ API
   useEffect(() => {
     const fetchCategories = async () => {
       const res = await axios.get<Category[]>("/api/categories");
@@ -68,6 +73,12 @@ export default function Header() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (search.trim()) params.set("search", search.trim());
+    router.push(`/customer/list-product?${params.toString()}`);
+  };
 
   return (
     <header className="bg-green-700 shadow-md fixed top-0 left-0 w-full z-50">
@@ -127,9 +138,13 @@ export default function Header() {
             placeholder="Tìm kiếm sản phẩm..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()} // nhấn Enter để search
             className="w-full px-4 py-2 pl-10 rounded-md text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-gray-700 placeholder-gray-400 transition duration-200"
           />
-          <MagnifyingGlassIcon className="w-5 h-5 text-gray-500 absolute left-3" />
+          <MagnifyingGlassIcon
+            className="w-5 h-5 text-gray-500 absolute left-3 cursor-pointer"
+            onClick={handleSearch}
+          />
         </div>
 
         {/* Icon giỏ hàng + avatar */}
@@ -139,9 +154,11 @@ export default function Header() {
             className="relative text-white hover:text-green-200 transition"
           >
             <ShoppingCartIcon className="w-6 h-6" />
-            <span className="absolute -top-2 -right-2 bg-red-500 text-xs text-white rounded-full px-1">
-              3
-            </span>
+            {totalItems > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-xs text-white rounded-full px-1 min-w-[18px] text-center">
+                {totalItems}
+              </span>
+            )}
           </Link>
 
           {/* Avatar + Dropdown */}

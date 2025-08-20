@@ -1,27 +1,37 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import ProductCard from "@/components/product/ProductCard";
 import FloatingButtons from "@/components/layout/FloatingButtons";
 import { Product } from "@/types/product";
 import axios from "axios";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 interface ListProductProps {
   slug?: string;
 }
 
 export default function ListProduct({ slug }: ListProductProps) {
-    
-  const router = useRouter();
+
+  const searchParams = useSearchParams();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<{ id: number; name: string; slug: string }[]>([]);
   const [selectedCategory, setSelectedCategory] = useState(slug || "tat-ca");
 
-  const filteredProducts =
-    selectedCategory === "tat-ca"
-      ? products
-      : products.filter((p) => p.categories?.slug === selectedCategory);
+  const [search, setSearch] = useState("");
+
+  // Lấy search từ URL khi param thay đổi
+  useEffect(() => {
+    const q = searchParams.get("search") || "";
+    setSearch(q.toLowerCase());
+  }, [searchParams]);
+
+  // const filteredProducts =
+  //   selectedCategory === "tat-ca"
+  //     ? products
+  //     : products.filter((p) => p.categories?.slug === selectedCategory);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,12 +52,17 @@ export default function ListProduct({ slug }: ListProductProps) {
 
   const handleCategoryChange = (catSlug: string) => {
     setSelectedCategory(catSlug); // cập nhật state
-    if (catSlug === "tat-ca") {
-      router.replace("/customer/list-product"); // chỉ replace URL, không reload
-    } else {
-      router.replace(`/customer/list-product/${catSlug}`);
-    }
+
   };
+
+  // 👉 Filter theo danh mục + search
+  const filteredProducts = products.filter((p) => {
+    const matchCategory =
+      selectedCategory === "tat-ca" ||
+      p.categories?.slug === selectedCategory;
+    const matchSearch = p.name.toLowerCase().includes(search);
+    return matchCategory && matchSearch;
+  });
 
   return (
     <div className="container mx-auto px-6 pt-20 pb-10">
