@@ -1,58 +1,107 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faUser,
-  faEnvelope,
-  faPhone,
-  faMapMarkerAlt,
-  faCamera,
-} from "@fortawesome/free-solid-svg-icons";
+import { faUser, faEnvelope, faPhone, faMapMarkerAlt, faCamera } from "@fortawesome/free-solid-svg-icons";
+import { useRouter } from "next/navigation";
+
+type Profile = {
+  id: number;
+  username?: string | null;
+  name: string;
+  email: string;
+  phone?: string | null;
+  gender?: string | null;
+  birthday?: string | null | Date;
+  avatar?: string | null;
+  // address?: string | null; // chỉ bật nếu schema có
+};
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState({
-    name: "Nguyễn Văn A",
-    email: "nguyenvana@example.com",
-    phone: "0123456789",
-    address: "Hà Nội, Việt Nam",
-    avatar: "/images/user1.jpg",
-  });
-
+  const router = useRouter();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch("/api/user/profile", {
+          credentials: "include", // ⚡ rất quan trọng nếu bạn dùng cookie JWT
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setProfile(data.user); // nhớ check res trả về, thường là { user: {...} }
+        } else {
+          router.push("/auth/login");
+        }
+      } catch (err) {
+        console.error("Fetch profile error:", err);
+        router.push("/auth/login");
+      } finally {
+        setLoading(false); // ✅ hết loading
+      }
+    };
+    fetchProfile();
+  }, [router]);
+
+
+  if (loading || !profile) {
+    return <p className="text-center mt-20">Đang tải...</p>;
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setProfile((prev) => ({ ...prev, [name]: value }));
+    setProfile((prev) => (prev ? { ...prev, [name]: value } : prev));
   };
 
-  const handleSave = () => {
-    alert("Thông tin đã được lưu!");
-    // Gọi API lưu thông tin ở đây
+  const handleSave = async () => {
+    if (!profile?.id) return;
+    try {
+
+      const res = await fetch(`/api/user/profile/${profile.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+      });
+      //
+      const data = await res.json();
+      console.log("Profile API trả về:", data);
+
+      if (res.ok) {
+        const updated = (await res.json()) as Profile;
+        setProfile(updated);
+        localStorage.setItem("user", JSON.stringify(updated));
+        alert("Thông tin đã được lưu!");
+      } else {
+        const err = await res.json();
+        alert(err.error || "Có lỗi xảy ra khi lưu!");
+      }
+    } catch {
+      alert("Có lỗi xảy ra khi lưu!");
+    }
   };
 
-  // Xử lý chọn ảnh mới
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setProfile((prev) => ({ ...prev, avatar: imageUrl }));
-    }
+    if (!file) return;
+    const previewUrl = URL.createObjectURL(file);
+    setProfile((prev) => (prev ? { ...prev, avatar: previewUrl } : prev));
+    // TODO: Upload ảnh lên server (Cloudinary/S3) -> nhận URL thật -> setProfile({ avatar: realUrl })
   };
 
   return (
     <div className="max-w-3xl mx-auto p-6 mt-16">
-      <h1 className="text-3xl font-extrabold mb-8 text-center text-green-700">
-        Thông tin cá nhân
-      </h1>
+      <h1 className="text-3xl font-extrabold mb-8 text-center text-green-700">Thông tin cá nhân</h1>
 
       <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg p-8 border border-gray-200">
         {/* Avatar */}
         <div className="flex flex-col items-center mb-8">
           <div className="relative">
             <Image
-              src={profile.avatar}
+              src={profile.avatar || "/images/default.jpg"}
               alt="Avatar"
               width={120}
               height={120}
@@ -63,7 +112,7 @@ export default function ProfilePage() {
               onClick={() => fileInputRef.current?.click()}
               className="absolute bottom-0 right-0 bg-green-500 text-white p-2 rounded-full shadow-md hover:bg-green-600 transition"
             >
-              <FontAwesomeIcon icon={faCamera} className="w-4 h-4"/>
+              <FontAwesomeIcon icon={faCamera} className="w-4 h-4" />
             </button>
             <input
               type="file"
@@ -86,7 +135,7 @@ export default function ProfilePage() {
             <input
               type="text"
               name="name"
-              value={profile.name}
+              value={profile.name || ""}
               onChange={handleChange}
               className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
             />
@@ -100,7 +149,7 @@ export default function ProfilePage() {
             <input
               type="email"
               name="email"
-              value={profile.email}
+              value={profile.email || ""}
               onChange={handleChange}
               className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
             />
@@ -114,7 +163,7 @@ export default function ProfilePage() {
             <input
               type="text"
               name="phone"
-              value={profile.phone}
+              value={profile.phone || ""}
               onChange={handleChange}
               className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
             />
@@ -122,16 +171,13 @@ export default function ProfilePage() {
 
           <div>
             <label className="block font-medium mb-1 flex">
-              <FontAwesomeIcon
-                icon={faMapMarkerAlt}
-                className="text-green-600 mr-2 w-4 h-4"
-              />
+              <FontAwesomeIcon icon={faMapMarkerAlt} className="text-green-600 mr-2 w-4 h-4" />
               Địa chỉ
             </label>
             <input
               type="text"
               name="address"
-              value={profile.address}
+              value={(profile as any).address || ""} // chỉ hiển thị nếu bạn có field này
               onChange={handleChange}
               className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
             />

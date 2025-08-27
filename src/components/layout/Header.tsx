@@ -19,7 +19,7 @@ export default function Header() {
   const [search, setSearch] = useState("");
   const [openUserMenu, setOpenUserMenu] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
-  
+
 
   const router = useRouter();
 
@@ -79,6 +79,16 @@ export default function Header() {
     if (search.trim()) params.set("search", search.trim());
     router.push(`/customer/list-product?${params.toString()}`);
   };
+
+
+  // logout
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    localStorage.removeItem("user"); // nếu bạn đang cache user
+    router.push("/auth/login") // hoặc router.push("/auth/login")
+  };
+
+
 
   return (
     <header className="bg-green-700 shadow-md fixed top-0 left-0 w-full z-50">
@@ -209,7 +219,7 @@ export default function Header() {
                   Đăng ký
                 </Link>
                 <button
-                  onClick={() => alert("Đăng xuất")}
+                  onClick={handleLogout}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
                 >
                   Đăng xuất
