@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
 import Cookies from "js-cookie";
+import axios from "axios";
 import { Product } from "@/types/product";
 
 export interface CartItem {
@@ -19,6 +20,7 @@ interface CartContextType {
   removeItem: (id: number) => void;
   updateQuantity: (id: number, quantity: number) => void;
   clearCart: () => void;
+  setCartFromServer: (items: CartItem[]) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -26,17 +28,33 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  // Lấy giỏ hàng từ cookie khi load lần đầu
+  // ✅ Lấy giỏ hàng từ server nếu có token, nếu không thì lấy từ cookie
   useEffect(() => {
-    const storedCart = Cookies.get("cart");
-    if (storedCart) {
-      setCart(JSON.parse(storedCart));
-    }
-  }, []);
+    const token = Cookies.get("token");
 
-  // Lưu giỏ hàng vào cookie khi thay đổi
+    if (token) {
+      axios.get("/api/cart", { headers: { Authorization: `Bearer ${token}` } })
+        .then((res: any) => {
+          if (res.data?.cart) {
+            setCart(res.data.cart);
+            Cookies.set("cart", JSON.stringify(res.data.cart), { expires: 7 });
+          }
+        });
+    } else {
+      const storedCart = Cookies.get("cart");
+      if (storedCart) {
+        setCart(JSON.parse(storedCart));
+      }
+    }
+  }, [Cookies.get("token")]);
+
+  // ✅ Đồng bộ giỏ hàng vào cookie mỗi khi thay đổi
   useEffect(() => {
-    Cookies.set("cart", JSON.stringify(cart), { expires: 7 });
+    if (cart.length > 0) {
+      Cookies.set("cart", JSON.stringify(cart), { expires: 7 });
+    } else {
+      Cookies.remove("cart");
+    }
   }, [cart]);
 
   const addItem = (product: Product) => {
@@ -74,17 +92,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     setCart((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, quantity } : item
-      )
+      prev.map((item) => (item.id === id ? { ...item, quantity } : item))
     );
   };
 
   const clearCart = () => setCart([]);
 
+  const setCartFromServer = (items: CartItem[]) => {
+    setCart(items);
+    Cookies.set("cart", JSON.stringify(items), { expires: 7 });
+  };
+
   return (
     <CartContext.Provider
-      value={{ cart, addItem, removeItem, updateQuantity, clearCart }}
+      value={{
+        cart,
+        addItem,
+        removeItem,
+        updateQuantity,
+        setCartFromServer,
+        clearCart,
+      }}
     >
       {children}
     </CartContext.Provider>

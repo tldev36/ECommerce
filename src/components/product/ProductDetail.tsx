@@ -5,6 +5,8 @@ import axios from "axios";
 import { Product } from "@/types/product";
 import Link from "next/link";
 import ProductCard from "./ProductCard";
+import { useCart } from "@/context/CartContext";
+
 
 interface ProductDetailProps {
   slug: string;
@@ -15,6 +17,7 @@ export default function ProductDetail({ slug }: ProductDetailProps) {
   const [related, setRelated] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  const { addItem } = useCart();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -48,6 +51,7 @@ export default function ProductDetail({ slug }: ProductDetailProps) {
 
   const handleIncrease = () => setQuantity((prev) => prev + 1);
   const handleDecrease = () => setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
+
 
   return (
     <div className="container mx-auto px-6 pt-20 pb-10">
@@ -149,7 +153,13 @@ export default function ProductDetail({ slug }: ProductDetailProps) {
             <button className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transition">
               Mua ngay
             </button>
-            <button className="flex-1 border border-green-600 text-green-600 hover:bg-green-50 font-semibold py-4 px-6 rounded-xl transition">
+            <button
+              onClick={(e) => {
+                e.preventDefault(); // để không follow link
+                addItem(product);    // ✅ thêm vào giỏ hàng
+                alert(`Đã thêm ${product.name} vào giỏ hàng!`); // ✅ thông báo
+              }}
+              className="flex-1 border border-green-600 text-green-600 hover:bg-green-50 font-semibold py-4 px-6 rounded-xl transition">
               Thêm giỏ hàng
             </button>
           </div>

@@ -12,6 +12,7 @@ import Image from "next/image";
 import { Category } from "@/types/category";
 import axios from "axios";
 import { useCart } from "@/context/CartContext";
+import Cookies from "js-cookie";
 
 
 export default function Header() {
@@ -23,7 +24,7 @@ export default function Header() {
 
   const router = useRouter();
 
-  const { cart } = useCart();
+  const { cart, clearCart } = useCart();
   const totalItems = cart.length;
 
   // Ref cho menu chính và menu user
@@ -83,10 +84,12 @@ export default function Header() {
 
   // logout
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    localStorage.removeItem("user"); // nếu bạn đang cache user
-    router.push("/auth/login") // hoặc router.push("/auth/login")
-  };
+  await fetch("/api/auth/logout", { method: "POST" });
+  localStorage.removeItem("user");
+  Cookies.remove("cart");
+  clearCart(); // ✅ xóa cart trong context
+  router.push("/auth/login");
+};
 
 
 
@@ -219,6 +222,7 @@ export default function Header() {
                   Đăng ký
                 </Link>
                 <button
+
                   onClick={handleLogout}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
                 >

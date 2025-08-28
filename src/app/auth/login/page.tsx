@@ -1,19 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEnvelope, faLock } from "@fortawesome/free-solid-svg-icons";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import Cookies from "js-cookie";
+import { useCart } from "@/context/CartContext";
 
 // ✅ Schema validation bằng Zod
 const loginSchema = z.object({
-  email: z
-    .string()
-    .nonempty("Vui lòng nhập email")
-    .email("Email không hợp lệ"),
+  email: z.string().nonempty("Vui lòng nhập email").email("Email không hợp lệ"),
   password: z
     .string()
     .nonempty("Vui lòng nhập mật khẩu")
@@ -24,6 +23,9 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams(); // 🔑 lấy query params
+  const redirect = searchParams.get("redirect") || "/customer/home"; // mặc định nếu ko có redirect
+  const { clearCart, setCartFromServer } = useCart();
 
   const {
     register,
@@ -32,31 +34,50 @@ export default function LoginPage() {
     setError,
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    mode: "onTouched", // ✅ validate realtime khi nhập
+    mode: "onTouched",
   });
 
   const onSubmit = async (data: LoginForm) => {
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+      credentials: "include", // ✅ để nhận token cookie từ server
+    });
+
+    if (res.ok) {
+      // ✅ Xóa cart cũ
+      Cookies.remove("cart");
+      clearCart();
+
+      // ✅ Lấy giỏ hàng từ server ngay sau login
+      const cartRes = await fetch("/api/cart", {
+        credentials: "include", // gửi kèm token cookie
       });
 
-      if (res.ok) {
-        router.push("/customer/profile");
-      } else {
-        setError("root", { message: "Sai email hoặc mật khẩu!" });
+      if (cartRes.ok) {
+        const data = await cartRes.json();
+        if (data?.cart) {
+          setCartFromServer(data.cart);
+        }
       }
-    } catch (err) {
-      setError("root", { message: "Lỗi server. Vui lòng thử lại!" });
+
+      router.push(redirect);
+    } else {
+      setError("email", { message: "Sai email hoặc mật khẩu!" });
     }
-  };
+  } catch (err) {
+    console.error(err);
+    setError("root", { message: "Lỗi server. Vui lòng thử lại!" });
+  }
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-50 p-6">
       <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl p-10 w-full max-w-md border border-gray-100">
-        <h2 className="text-3xl font-extrabold text-center text-green-700 mb-8 drop-shadow-sm">
+        <h2 className="text-3xl font-bold text-center text-green-700 mb-8 drop-shadow-sm">
           Đăng nhập
         </h2>
 
@@ -74,11 +95,10 @@ export default function LoginPage() {
                 type="email"
                 {...register("email")}
                 placeholder="Nhập email"
-                className={`w-full border rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 shadow-sm ${
-                  errors.email
-                    ? "border-red-500 focus:ring-red-400"
-                    : "border-gray-300 focus:ring-green-400"
-                }`}
+                className={`w-full border rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 shadow-sm ${errors.email
+                  ? "border-red-500 focus:ring-red-400"
+                  : "border-gray-300 focus:ring-green-400"
+                  }`}
               />
             </div>
             {errors.email && (
@@ -101,11 +121,10 @@ export default function LoginPage() {
                 type="password"
                 {...register("password")}
                 placeholder="Nhập mật khẩu"
-                className={`w-full border rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 shadow-sm ${
-                  errors.password
-                    ? "border-red-500 focus:ring-red-400"
-                    : "border-gray-300 focus:ring-green-400"
-                }`}
+                className={`w-full border rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 shadow-sm ${errors.password
+                  ? "border-red-500 focus:ring-red-400"
+                  : "border-gray-300 focus:ring-green-400"
+                  }`}
               />
             </div>
             {errors.password && (
@@ -115,7 +134,7 @@ export default function LoginPage() {
             )}
           </div>
 
-          {/* Lỗi chung (sai email/mật khẩu) */}
+          {/* Lỗi chung */}
           {errors.root && (
             <p className="text-red-500 text-sm text-center font-medium">
               {errors.root.message}
@@ -135,7 +154,7 @@ export default function LoginPage() {
           <p className="text-center text-sm text-gray-600 mt-4">
             Chưa có tài khoản?{" "}
             <Link
-              href="/auth/register"
+              href={`/auth/register?redirect=${redirect}`} // giữ nguyên redirect khi đăng ký
               className="text-green-600 hover:text-green-700 hover:underline font-medium"
             >
               Đăng ký ngay
