@@ -10,47 +10,38 @@ export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
 
-    // Tìm user theo email
+    // 1️⃣ Tìm user theo email
     const user = await prisma.users.findUnique({ where: { email } });
-    if (!user) {
-      return NextResponse.json({ error: "Email không tồn tại" }, { status: 401 });
-    }
-    console.log("user from db:", user);
+    if (!user) return NextResponse.json({ error: "Email không tồn tại" }, { status: 401 });
 
-    // So sánh password
+    // 2️⃣ So sánh password
     const isMatch = await bcrypt.compare(password, user.password_hash);
-    console.log("password match:", isMatch);
-    if (!isMatch) {
-      return NextResponse.json({ error: "Sai mật khẩu" }, { status: 401 });
-    }
+    if (!isMatch) return NextResponse.json({ error: "Sai mật khẩu" }, { status: 401 });
 
-    // Tạo JWT token
+    // 3️⃣ Tạo JWT token
     const token = jwt.sign({ id: user.id, email: user.email }, SECRET, { expiresIn: "1h" });
 
-    // Lấy cookie giỏ hàng tạm thời từ header
+    // 4️⃣ Lấy giỏ hàng tạm thời từ cookie
     const cookieHeader = req.headers.get("cookie") || "";
     const parsedCookies = cookie.parse(cookieHeader);
-    const cartCookie = parsedCookies["cart"] || "[]";
-    const cartItems = cartCookie ? JSON.parse(cartCookie) : [];
+    const cartTemp = parsedCookies["cart_temp"] ? JSON.parse(parsedCookies["cart_temp"]) : [];
 
-    // Lưu giỏ hàng vào DB
-    for (const item of cartItems) {
-      await prisma.cart_items.create({
-        data: {
-          user_id: user.id,
-          product_id: item.id,
-          quantity: item.quantity || 1,
-        },
+    // 5️⃣ Merge cart tạm thời vào DB
+    for (const item of cartTemp) {
+      await prisma.cart_items.upsert({
+        where: { user_id_product_id: { user_id: user.id, product_id: item.id } },
+        update: { quantity: item.quantity },
+        create: { user_id: user.id, product_id: item.id, quantity: item.quantity },
       });
     }
 
-    // Tạo response
+    // 6️⃣ Tạo response
     const res = NextResponse.json({
       message: "Đăng nhập thành công",
       user: { id: user.id, name: user.name, email: user.email },
     });
 
-    // Set JWT token
+    // 7️⃣ Set JWT token HttpOnly
     res.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

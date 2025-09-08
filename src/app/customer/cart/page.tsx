@@ -1,6 +1,5 @@
 "use client";
 import { useCart } from "@/context/CartContext";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -12,50 +11,63 @@ import {
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
+import { useRouter } from "next/navigation";
+import { CartItem } from "@/context/CartContext";
 
 export default function CartPage() {
-  const { removeItem, setCartFromServer, clearCart, updateQuantity } = useCart();
-  const router = useRouter();
+  const { cart, removeItem, clearCart, updateQuantity, setCartFromServer } = useCart();
   const [user, setUser] = useState<any>(null);
-  const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
+  // ✅ chỉ fetch user
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserAndCart = async () => {
       try {
         const res = await axios.get("/api/auth/me");
-        setUser((res.data as { user: any }).user);
+        const u = (res.data as { user: any }).user;
+        setUser(u);
+
+        if (u) {
+          // ✅ user có login → lấy giỏ hàng từ server
+          const cartRes = await axios.get<CartItem[]>("/api/cart");
+          setCartFromServer(cartRes.data);
+        }
       } catch {
         setUser(null);
-      }
-    };
-    fetchUser();
-  }, []);
-
-  useEffect(() => {
-    const fetchCart = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const res = await axios.get("/api/cart");
-        setCart((res.data as { cart: any[] }).cart);
-        setCartFromServer((res.data as { cart: any[] }).cart);
-      } catch (err) {
-        console.error("Lỗi load giỏ hàng:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchCart();
-  }, [user]);
+    fetchUserAndCart();
+  }, []);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   if (loading) {
     return <div className="p-6 text-center">⏳ Đang tải giỏ hàng...</div>;
   }
+
+  const handleCheckout = async () => {
+    if (!user) {
+      router.push("/auth/login?redirect=/customer/cart");
+      return;
+    }
+
+    try {
+      const res = await axios.post("/api/cart/save", { items: cart });
+      if (res.status === 200) {
+        alert("🎉 Đặt hàng thành công!");
+        clearCart();
+        // router.push("/orders");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("❌ Có lỗi khi đặt hàng. Vui lòng thử lại!");
+    }
+  };
+
+
 
   return (
     <div className="pt-20 max-w-5xl mx-auto px-4">
@@ -86,26 +98,23 @@ export default function CartPage() {
               >
                 <Image
                   src={`/images/products/${item.image}`}
-                  alt={item.name}
+                  alt={item.name || 'Product image'}
                   width={100}
                   height={100}
                   className="rounded-lg border shadow-sm"
                 />
-
                 <div className="flex-1 w-full">
                   <p className="font-semibold text-gray-800 text-lg">
-                    {item.name}
+                    {item.name} {item.id}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {item.price.toLocaleString()} ₫ / {item.unit}
+                    <span>{item.price?.toLocaleString('vi-VN')}₫</span>
                   </p>
 
-                  {/* số lượng */}
                   <div className="flex items-center gap-3 mt-3">
                     <button
-                      onClick={() =>
-                        updateQuantity(item.id, item.quantity - 1)
-                      }
+                      type="button"
+                      onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
                       className="px-2 py-1 border rounded-lg hover:bg-gray-100"
                     >
                       <FontAwesomeIcon icon={faMinus} />
@@ -114,9 +123,8 @@ export default function CartPage() {
                       {item.quantity}
                     </span>
                     <button
-                      onClick={() =>
-                        updateQuantity(item.id, item.quantity + 1)
-                      }
+                      type="button"
+                      onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
                       className="px-2 py-1 border rounded-lg hover:bg-gray-100"
                     >
                       <FontAwesomeIcon icon={faPlus} />
@@ -129,19 +137,27 @@ export default function CartPage() {
                     {(item.price * item.quantity).toLocaleString()} ₫
                   </p>
                   <button
-                    onClick={() => removeItem(item.id)}
+                    type="button"
+                    onClick={() => {
+                      
+                      removeItem(item.product_id);
+                      
+
+                      console.log("Gửi product_id để xóa:", item.product_id); // 🔹 log dữ liệu
+                    }}
                     className="text-red-500 text-sm hover:underline mt-2 flex items-center gap-1"
                   >
                     <FontAwesomeIcon icon={faTrash} /> Xoá
                   </button>
+
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Tổng cộng */}
           <div className="mt-8 flex flex-col sm:flex-row justify-between items-center bg-gray-50 p-6 rounded-xl shadow-inner gap-4">
             <button
+              type="button"
               onClick={clearCart}
               className="px-5 py-2 border rounded-lg text-red-600 hover:bg-red-50 flex items-center gap-2"
             >
@@ -156,7 +172,8 @@ export default function CartPage() {
                 </span>
               </p>
               <button
-                onClick={() => alert("🚀 Thanh toán sau nhé")}
+                type="button"
+                onClick={handleCheckout}
                 className="mt-3 px-8 py-3 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition"
               >
                 Thanh toán

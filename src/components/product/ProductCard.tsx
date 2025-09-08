@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Product } from "@/types/product";
 import { useCart } from "@/context/CartContext";
+import axios from "axios";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart as faSolidHeart } from "@fortawesome/free-solid-svg-icons";
@@ -23,6 +24,27 @@ export default function ProductCard({ product }: { product: Product }) {
     ? product.price - (product.price * product.discount) / 100
     : product.price;
 
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    try {
+      await axios.post("/api/cart/add", {
+        productId: product.id,
+        quantity: 1,
+      });
+
+      alert(`Đã thêm ${product.name} vào giỏ hàng (database)!`);
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        // Nếu chưa đăng nhập → fallback về local storage
+        addItem(product);
+        alert(`Đã thêm ${product.name} vào giỏ hàng (local)!`);
+      } else {
+        console.error(err);
+        alert("Lỗi khi thêm vào giỏ hàng!");
+      }
+    }
+  };
 
 
   return (
@@ -101,9 +123,8 @@ export default function ProductCard({ product }: { product: Product }) {
             {/* Nút thêm */}
             <button
               onClick={(e) => {
-                e.preventDefault(); // để không follow link
-                addItem(product);    // ✅ thêm vào giỏ hàng
-                alert(`Đã thêm ${product.name} vào giỏ hàng!`); // ✅ thông báo
+                handleAddToCart(e);
+                
               }}
               className="text-sm bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 transition"
             >

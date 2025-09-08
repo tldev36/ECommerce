@@ -23,8 +23,8 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams(); // 🔑 lấy query params
-  const redirect = searchParams.get("redirect") || "/customer/home"; // mặc định nếu ko có redirect
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "/customer/home";
   const { clearCart, setCartFromServer } = useCart();
 
   const {
@@ -38,24 +38,44 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginForm) => {
-  try {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-      credentials: "include", // ✅ để nhận token cookie từ server
-    });
-
-    if (res.ok) {
-      // ✅ Xóa cart cũ
-      Cookies.remove("cart");
-      clearCart();
-
-      // ✅ Lấy giỏ hàng từ server ngay sau login
-      const cartRes = await fetch("/api/cart", {
-        credentials: "include", // gửi kèm token cookie
+    try {
+      // 1️⃣ Login API → server trả JWT HttpOnly cookie
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include", // để nhận cookie JWT
       });
 
+      if (!res.ok) {
+        setError("email", { message: "Sai email hoặc mật khẩu!" });
+        return;
+      }
+
+      // 2️⃣ Lấy giỏ hàng tạm thời trước login
+      const tempCart = Cookies.get("cart_temp")
+        ? JSON.parse(Cookies.get("cart_temp")!)
+        : [];
+
+      // 3️⃣ Merge cart tạm thời lên server
+      if (tempCart.length > 0) {
+        const mergeRes = await fetch("/api/cart/merge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include", // gửi JWT
+          body: JSON.stringify({ items: tempCart }),
+        });
+
+        if (!mergeRes.ok) {
+          console.error("Merge cart failed");
+        }
+
+        // Xóa cart tạm thời
+        Cookies.remove("cart_temp");
+      }
+
+      // 4️⃣ Lấy giỏ hàng đồng bộ từ server
+      const cartRes = await fetch("/api/cart", { credentials: "include" });
       if (cartRes.ok) {
         const data = await cartRes.json();
         if (data?.cart) {
@@ -63,16 +83,13 @@ export default function LoginPage() {
         }
       }
 
+      // 5️⃣ Chuyển hướng
       router.push(redirect);
-    } else {
-      setError("email", { message: "Sai email hoặc mật khẩu!" });
+    } catch (err) {
+      console.error(err);
+      setError("root", { message: "Lỗi server. Vui lòng thử lại!" });
     }
-  } catch (err) {
-    console.error(err);
-    setError("root", { message: "Lỗi server. Vui lòng thử lại!" });
-  }
-};
-
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-50 p-6">
@@ -95,10 +112,11 @@ export default function LoginPage() {
                 type="email"
                 {...register("email")}
                 placeholder="Nhập email"
-                className={`w-full border rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 shadow-sm ${errors.email
-                  ? "border-red-500 focus:ring-red-400"
-                  : "border-gray-300 focus:ring-green-400"
-                  }`}
+                className={`w-full border rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 shadow-sm ${
+                  errors.email
+                    ? "border-red-500 focus:ring-red-400"
+                    : "border-gray-300 focus:ring-green-400"
+                }`}
               />
             </div>
             {errors.email && (
@@ -121,10 +139,11 @@ export default function LoginPage() {
                 type="password"
                 {...register("password")}
                 placeholder="Nhập mật khẩu"
-                className={`w-full border rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 shadow-sm ${errors.password
-                  ? "border-red-500 focus:ring-red-400"
-                  : "border-gray-300 focus:ring-green-400"
-                  }`}
+                className={`w-full border rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 shadow-sm ${
+                  errors.password
+                    ? "border-red-500 focus:ring-red-400"
+                    : "border-gray-300 focus:ring-green-400"
+                }`}
               />
             </div>
             {errors.password && (
@@ -154,7 +173,7 @@ export default function LoginPage() {
           <p className="text-center text-sm text-gray-600 mt-4">
             Chưa có tài khoản?{" "}
             <Link
-              href={`/auth/register?redirect=${redirect}`} // giữ nguyên redirect khi đăng ký
+              href={`/auth/register?redirect=${redirect}`}
               className="text-green-600 hover:text-green-700 hover:underline font-medium"
             >
               Đăng ký ngay
