@@ -25,7 +25,7 @@ export async function GET() {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("token")?.value;
-    if (!token) return NextResponse.json([], { status: 200 });
+    if (!token) return NextResponse.json({ cart: [] }, { status: 200 });
 
     const decoded = jwt.verify(token, SECRET) as { id: number };
 
@@ -34,7 +34,6 @@ export async function GET() {
       include: { products: true },
     });
 
-    // ✅ map dữ liệu đúng với CartItem interface
     const cart = items.map((item) => ({
       id: item.id,
       product_id: item.product_id,
@@ -43,31 +42,18 @@ export async function GET() {
       price: item.products.price,
       unit: item.products.unit,
       image: item.products.image,
-      quantity: item.quantity,
+      quantity: item.quantity ?? 0,
     }));
 
-    return NextResponse.json(cart, { status: 200 });
+    return NextResponse.json(
+      {
+        user: { id: decoded.id },
+        cart,
+      },
+      { status: 200 }
+    );
   } catch (err) {
     console.error("❌ Lỗi lấy giỏ hàng:", err);
-    return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
-  }
-}
-
-// ✅ Xóa hết giỏ hàng
-export async function DELETE() {
-  try {
-    const userId = getUserIdFromCookie();
-    if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    await prisma.cart_items.deleteMany({
-      where: { user_id: userId },
-    });
-
-    return NextResponse.json([], { status: 200 }); // trả về giỏ rỗng
-  } catch (err) {
-    console.error("DELETE /api/cart error:", err);
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    return NextResponse.json({ cart: [] }, { status: 500 });
   }
 }

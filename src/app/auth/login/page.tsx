@@ -24,8 +24,8 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/customer/home";
-  const { clearCart, setCartFromServer } = useCart();
+  const redirect = searchParams?.get("redirect") ?? "/customer/home";
+  const { setCartFromServer } = useCart();
 
   const {
     register,
@@ -39,57 +39,53 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      // 1️⃣ Login API → server trả JWT HttpOnly cookie
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include", // để nhận cookie JWT
+        credentials: "include", // để nhận cookie
       });
 
       if (!res.ok) {
-        setError("email", { message: "Sai email hoặc mật khẩu!" });
+        // nếu sai email hoặc mật khẩu
+        setError("root", { message: "Email hoặc mật khẩu không đúng!" });
         return;
       }
 
-      // 2️⃣ Lấy giỏ hàng tạm thời trước login
+      const loginData = await res.json();
+      console.log("JWT Token:", loginData.token);
+
+      // Merge giỏ hàng từ cookie (nếu có)
       const tempCart = Cookies.get("cart_temp")
         ? JSON.parse(Cookies.get("cart_temp")!)
         : [];
 
-      // 3️⃣ Merge cart tạm thời lên server
       if (tempCart.length > 0) {
-        const mergeRes = await fetch("/api/cart/merge", {
+        await fetch("/api/cart/merge", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include", // gửi JWT
+          credentials: "include",
           body: JSON.stringify({ items: tempCart }),
         });
-
-        if (!mergeRes.ok) {
-          console.error("Merge cart failed");
-        }
-
-        // Xóa cart tạm thời
         Cookies.remove("cart_temp");
       }
 
-      // 4️⃣ Lấy giỏ hàng đồng bộ từ server
+      // Lấy giỏ hàng từ server
       const cartRes = await fetch("/api/cart", { credentials: "include" });
       if (cartRes.ok) {
-        const data = await cartRes.json();
-        if (data?.cart) {
-          setCartFromServer(data.cart);
+        const cartData = await cartRes.json();
+        if (cartData?.cart) {
+          setCartFromServer(cartData.cart);
         }
       }
 
-      // 5️⃣ Chuyển hướng
       router.push(redirect);
     } catch (err) {
       console.error(err);
       setError("root", { message: "Lỗi server. Vui lòng thử lại!" });
     }
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-50 p-6">
@@ -112,11 +108,10 @@ export default function LoginPage() {
                 type="email"
                 {...register("email")}
                 placeholder="Nhập email"
-                className={`w-full border rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 shadow-sm ${
-                  errors.email
-                    ? "border-red-500 focus:ring-red-400"
-                    : "border-gray-300 focus:ring-green-400"
-                }`}
+                className={`w-full border rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 shadow-sm ${errors.email
+                  ? "border-red-500 focus:ring-red-400"
+                  : "border-gray-300 focus:ring-green-400"
+                  }`}
               />
             </div>
             {errors.email && (
@@ -139,11 +134,10 @@ export default function LoginPage() {
                 type="password"
                 {...register("password")}
                 placeholder="Nhập mật khẩu"
-                className={`w-full border rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 shadow-sm ${
-                  errors.password
-                    ? "border-red-500 focus:ring-red-400"
-                    : "border-gray-300 focus:ring-green-400"
-                }`}
+                className={`w-full border rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 shadow-sm ${errors.password
+                  ? "border-red-500 focus:ring-red-400"
+                  : "border-gray-300 focus:ring-green-400"
+                  }`}
               />
             </div>
             {errors.password && (
@@ -155,10 +149,11 @@ export default function LoginPage() {
 
           {/* Lỗi chung */}
           {errors.root && (
-            <p className="text-red-500 text-sm text-center font-medium">
+            <p className="text-red-500 text-sm text-center font-medium mt-2">
               {errors.root.message}
             </p>
           )}
+
 
           {/* Nút đăng nhập */}
           <button

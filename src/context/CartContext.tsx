@@ -3,20 +3,13 @@ import { createContext, useContext, useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import axios from "axios";
 import { Product } from "@/types/product";
-
-export interface CartItem {
-  id?: number;
-  product_id: number;
-  name: string;
-  slug: string;
-  price: number;
-  unit: string;
-  image: string;
-  quantity: number;
-}
+import { CartItem } from "@/types/cartItem";
 
 interface CartContextType {
   cart: CartItem[];
+  user: any | null;
+  isLoggedIn: boolean;
+  setCart: (items: CartItem[]) => void;
   addItem: (product: Product) => void;
   removeItem: (id: number) => void;
   updateQuantity: (id: number, quantity: number) => void;
@@ -24,138 +17,204 @@ interface CartContextType {
   setCartFromServer: (items: CartItem[]) => void;
 }
 
+interface MeResponse {
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    // các trường khác của user
+  };
+}
+
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-// ✅ axios gửi cookie tự động
 axios.defaults.withCredentials = true;
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [user, setUser] = useState<any | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Lấy giỏ hàng từ server nếu login, nếu không lấy từ cookie
+  // ----------------------------
+  // Load user + cart khi mount
+  // ----------------------------
   useEffect(() => {
-    const fetchCart = async () => {
+    const fetchUserAndCart = async () => {
       try {
-        const res = await axios.get<{ cart: CartItem[] }>("/api/cart");
-        if (res.data?.cart) {
-          setCart(res.data.cart);
-        } else {
-          const storedCart = Cookies.get("cart");
-          if (storedCart) setCart(JSON.parse(storedCart));
+        // Lấy thông tin user
+        const userRes = await axios.get<MeResponse>("/api/auth/me", { withCredentials: true });
+        if (userRes.data?.user) {
+          setUser(userRes.data.user);
+          setIsLoggedIn(true);
         }
-      } catch (err) {
-        // chưa login → lấy từ cookie
+
+        // Lấy giỏ hàng từ server
+        const cartRes = await axios.get<{ cart: CartItem[] }>("/api/cart", { withCredentials: true });
+        if (cartRes.data?.cart) setCart(cartRes.data.cart);
+      } catch {
+        // fallback: chưa login → lấy cart từ cookie
+        setIsLoggedIn(false);
         const storedCart = Cookies.get("cart");
         if (storedCart) setCart(JSON.parse(storedCart));
       }
     };
-    fetchCart();
+
+    fetchUserAndCart();
   }, []);
 
-  // Lưu giỏ hàng vào cookie nếu chưa login
-  useEffect(() => {
-    const storeCart = async () => {
-      try {
-        await axios.get("/api/cart");
-        // nếu login → server lưu rồi, không cần cookie
-      } catch {
-        if (cart.length > 0) {
-          Cookies.set("cart", JSON.stringify(cart), { expires: 7 });
-        } else {
-          Cookies.remove("cart");
-        }
-      }
-    };
-    storeCart();
-  }, [cart]);
-
-  // Thêm sản phẩm
-  const addItem = async (product: Product) => {
-    try {
-      const res = await axios.post<{ cart: CartItem[] }>("/api/cart", { productId: product.id, quantity: 1 });
-      if (res.data?.cart) setCart(res.data.cart);
-    } catch {
-      // chưa login → lưu cookie
-      setCart((prev) => {
-        const existing = prev.find((i) => i.product_id === product.id);
-        if (existing) return prev.map((i) => i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
-        return [...prev, { product_id: product.id, name: product.name, slug: product.slug, price: product.price, unit: product.unit, image: product.image, quantity: 1 }];
-      });
-    }
-  };
-
-  // ❌ Xóa sản phẩm
-  // Xóa sản phẩm
-const removeItem = async (productId: number) => {
-  // 1️⃣ Cập nhật state ngay lập tức (optimistic update)
-  setCart((prev) => {
-    const newCart = prev.filter((i) => i.product_id !== productId);
-    if (newCart.length > 0) {
-      Cookies.set("cart", JSON.stringify(newCart), { expires: 7 });
+  // ----------------------------
+  // Helper cookie
+  // ----------------------------
+  const saveCartToCookie = (items: CartItem[]) => {
+    setCart(items);
+    if (items.length > 0) {
+      Cookies.set("cart", JSON.stringify(items), { expires: 7, sameSite: "lax" });
     } else {
       Cookies.remove("cart");
     }
-    return newCart;
-  });
+  };
 
-  try {
-    // 2️⃣ Thử xóa trên server
-    await axios.delete(`/api/cart/${productId}`);
-
-    // 3️⃣ Lấy lại giỏ hàng mới nhất từ server để đảm bảo đồng bộ
-    const res = await axios.get<{ cart: CartItem[] }>("/api/cart");
-    if (res.data?.cart) {
-      setCart(res.data.cart);
-      if (res.data.cart.length > 0) {
-        Cookies.set("cart", JSON.stringify(res.data.cart), { expires: 7 });
-      } else {
-        Cookies.remove("cart");
+  // ----------------------------
+  // Action
+  // ----------------------------
+  const addItem = async (product: Product) => {
+    if (user) {
+      // ✅ User đang login → gọi API lưu DB
+      try {
+        const res = await axios.post<{ cart: CartItem[] }>(
+          "/api/cart/add",
+          { productId: product.id, quantity: 1 },
+          { withCredentials: true }
+        );
+        if (res.data?.cart) setCart(res.data.cart);
+      } catch (err) {
+        console.error("❌ Lỗi thêm sản phẩm khi login:", err);
+        alert("Không thể thêm sản phẩm vào giỏ hàng!");
       }
-    }
-  } catch {
-    // Nếu chưa login hoặc server lỗi → đã update state phía client rồi, không cần làm gì thêm
-    console.warn("Xóa item thất bại trên server, nhưng client vẫn cập nhật.");
-  }
-};
-
-
-
-
-  // Cập nhật số lượng
-  const updateQuantity = async (productId: number, quantity: number) => {
-    if (quantity <= 0) {
-      removeItem(productId);
-      return;
-    }
-    try {
-      const res = await axios.put<{ cart: CartItem[] }>(`/api/cart/${productId}`, { quantity });
-      if (res.data?.cart) setCart(res.data.cart);
-    } catch {
-      // chưa login → cập nhật trong cookie
-      setCart((prev) => prev.map((i) => i.product_id === productId ? { ...i, quantity } : i));
+    } else {
+      // ✅ Chưa login → lưu tạm vào cookie
+      const existing = cart.find((i) => i.product_id === product.id);
+      if (existing) {
+        saveCartToCookie(
+          cart.map((i) =>
+            i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+          )
+        );
+      } else {
+        saveCartToCookie([
+          ...cart,
+          {
+            product_id: product.id,
+            name: product.name,
+            slug: product.slug,
+            price: product.price,
+            unit: product.unit,
+            image: product.image,
+            quantity: 1,
+          },
+        ]);
+      }
+      alert(`Đã thêm ${product.name} vào giỏ hàng tạm!`);
     }
   };
 
-  // Xóa toàn bộ giỏ hàng
-  const clearCart = async () => {
+
+
+  const removeItem = async (productId: number) => {
+    if (isLoggedIn) {
+      await axios.delete(`/api/cart/delete/${productId}`);
+      const res = await axios.get<{ cart: CartItem[] }>("/api/cart");
+      if (res.data?.cart) setCart(res.data.cart);
+    } else {
+      saveCartToCookie(cart.filter((i) => i.product_id !== productId));
+    }
+  };
+
+  // const updateQuantity = async (productId: number, quantity: number) => {
+  //   if (quantity <= 0) {
+  //     removeItem(productId);
+  //     return;
+  //   }
+
+  //   if (isLoggedIn) {
+  //     const res = await axios.put<{ cart: CartItem[] }>(`/api/cart/${productId}`, {
+  //       quantity,
+  //     });
+  //     if (res.data?.cart) setCart(res.data.cart);
+  //   } else {
+  //     saveCartToCookie(
+  //       cart.map((i) =>
+  //         i.product_id === productId ? { ...i, quantity } : i
+  //       )
+  //     );
+  //   }
+  // };
+
+  const updateQuantity = async (productId: number, quantity: number) => {
     try {
-      await axios.delete("/api/cart");
+      if (quantity <= 0) {
+        await removeItem(productId);
+        return;
+      }
+
+      if (isLoggedIn) {
+        // ✅ Gửi PUT tới API để cập nhật số lượng trong DB
+        const res = await axios.put<{ cart: CartItem[] }>(
+          `/api/cart/${productId}`,
+          { quantity },
+          { withCredentials: true }
+        );
+        console.log("🔍 PUT response:", res.data);
+
+        // ✅ Cập nhật lại state giỏ hàng
+        if (res.data?.cart) {
+          setCart(res.data.cart);
+        } else {
+          console.warn("Không nhận được dữ liệu giỏ hàng từ server");
+        }
+      } else {
+        // ✅ Cập nhật giỏ hàng trong cookie nếu chưa đăng nhập
+        const newCart = cart.map((i) =>
+          i.product_id === productId ? { ...i, quantity } : i
+        );
+         console.log("🧩 Updated local cart:", newCart);
+        saveCartToCookie(newCart);
+      }
+    } catch (error: any) {
+      console.error("❌ Lỗi cập nhật số lượng:", error);
+      alert("Không thể cập nhật số lượng sản phẩm!");
+    }
+  };
+
+
+  const clearCart = async () => {
+    if (isLoggedIn) {
+      await axios.delete("/api/cart/delete");
       setCart([]);
-    } catch {
-      setCart([]);
-      Cookies.remove("cart");
+    } else {
+      saveCartToCookie([]);
     }
   };
 
   const setCartFromServer = (items: CartItem[]) => {
     setCart(items);
-    // chưa login → lưu cookie
-    const storedCart = Cookies.get("cart");
-    if (!storedCart) Cookies.set("cart", JSON.stringify(items), { expires: 7 });
+    setIsLoggedIn(true);
   };
 
   return (
-    <CartContext.Provider value={{ cart, addItem, removeItem, updateQuantity, setCartFromServer, clearCart }}>
+    <CartContext.Provider
+      value={{
+        cart,
+        user,
+        isLoggedIn,
+        setCart,
+        addItem,
+        removeItem,
+        updateQuantity,
+        clearCart,
+        setCartFromServer,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );
@@ -163,6 +222,6 @@ const removeItem = async (productId: number) => {
 
 export function useCart() {
   const context = useContext(CartContext);
-  if (!context) throw new Error("useCart phải được sử dụng trong <CartProvider>");
+  if (!context) throw new Error("useCart phải được dùng trong <CartProvider>");
   return context;
 }

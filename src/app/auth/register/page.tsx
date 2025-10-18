@@ -11,30 +11,30 @@ export const registerSchema = z.object({
   username: z
     .string()
     .nonempty("Vui lòng nhập tên đăng nhập"),
-    
+
   name: z
     .string()
     .nonempty("Vui lòng nhập họ tên"),
-    
+
   email: z
     .string()
     .nonempty("Vui lòng nhập email")
     .email("Email không hợp lệ"),
-    
+
   password: z
     .string()
     .nonempty("Vui lòng nhập mật khẩu")
     .min(6, "Mật khẩu ít nhất 6 ký tự"),
-    
+
   phone: z
     .string()
     .nonempty("Vui lòng nhập số điện thoại")
     .regex(/^\d{9,11}$/, "Số điện thoại phải có 9–11 chữ số"),
-    
+
   gender: z.enum(["male", "female"], {
     error: "Vui lòng chọn giới tính",
   }),
-  
+
   birthday: z
     .string()
     .nonempty("Vui lòng nhập ngày sinh"),
@@ -44,16 +44,16 @@ export type RegisterForm = z.infer<typeof registerSchema>;
 
 // ✅ Hàm sinh className cho input
 const inputClass = (hasError?: boolean) =>
-  `w-full p-2.5 border rounded-lg shadow-sm transition ${
-    hasError
-      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-      : "border-gray-300 focus:ring-green-500 focus:border-green-500"
+  `w-full p-2.5 border rounded-lg shadow-sm transition ${hasError
+    ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+    : "border-gray-300 focus:ring-green-500 focus:border-green-500"
   }`;
 
 export default function RegisterPage() {
   const router = useRouter();
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
+  const [gender, setGender] = useState("");
 
   const {
     register,
@@ -111,6 +111,7 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Username */}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Tên đăng nhập
@@ -126,6 +127,7 @@ export default function RegisterPage() {
               </p>
             )}
           </div>
+
 
           {/* Name */}
           <div>
@@ -203,8 +205,11 @@ export default function RegisterPage() {
             <select
               {...register("gender")}
               className={inputClass(!!errors.gender)}
+              value={gender} // điều khiển value bằng state
+              onChange={(e) => setGender(e.target.value)}
+              
             >
-              <option value="">-- Chọn giới tính --</option>
+              <option value="" disabled>-- Chọn giới tính --</option>
               <option value="male">Nam</option>
               <option value="female">Nữ</option>
             </select>

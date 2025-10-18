@@ -10,6 +10,7 @@ export default async function NewProducts() {
     where: { is_new: true },
     orderBy: { id: "desc" }, // sắp xếp mới nhất trước
     take: 12, // chỉ lấy 12 sản phẩm mới nhất
+    include: { categories: true },
   });
 console.log("New Products1:", products.length);
   const newProducts: Product[] = products.map(ProductMapper.toDomain);

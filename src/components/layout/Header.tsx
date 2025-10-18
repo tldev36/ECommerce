@@ -14,24 +14,21 @@ import axios from "axios";
 import { useCart } from "@/context/CartContext";
 import Cookies from "js-cookie";
 
-
 export default function Header() {
   const [openMenu, setOpenMenu] = useState<string>("");
   const [search, setSearch] = useState("");
   const [openUserMenu, setOpenUserMenu] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
-
+  const [user, setUser] = useState<any>(null); // trạng thái user
 
   const router = useRouter();
-
-  const { cart, clearCart } = useCart();
+  const { cart, setCart } = useCart();
   const totalItems = cart.length;
 
-  // Ref cho menu chính và menu user
   const navRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Fetch categories từ API
+  // Fetch danh mục sản phẩm
   useEffect(() => {
     const fetchCategories = async () => {
       const res = await axios.get<Category[]>("/api/categories");
@@ -40,6 +37,37 @@ export default function Header() {
     fetchCategories();
   }, []);
 
+  // Lấy user từ cookie JWT (/api/auth/me)
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        setUser(data.user || null);
+      } catch {
+        setUser(null);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  // Logout
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    Cookies.remove("cart");
+    setCart([]);
+    setUser(null);
+    router.push("/auth/login");
+  };
+
+  // Tìm kiếm
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (search.trim()) params.set("search", search.trim());
+    router.push(`/customer/list-product?${params.toString()}`);
+  };
+
+  // Menu chính
   const navItems = [
     { name: "Trang chủ", href: "/customer/home" },
     {
@@ -75,41 +103,19 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSearch = () => {
-    const params = new URLSearchParams();
-    if (search.trim()) params.set("search", search.trim());
-    router.push(`/customer/list-product?${params.toString()}`);
-  };
-
-
-  // logout
-  const handleLogout = async () => {
-  await fetch("/api/auth/logout", { method: "POST" });
-  localStorage.removeItem("user");
-  Cookies.remove("cart");
-  clearCart(); // ✅ xóa cart trong context
-  router.push("/auth/login");
-};
-
-
-
   return (
     <header className="bg-green-700 shadow-md fixed top-0 left-0 w-full z-50">
       <div className="container mx-auto flex items-center justify-between px-6 py-3 gap-4 ">
         {/* Logo */}
-        <Link
-          href="/"
-          className="text-white font-bold text-lg whitespace-nowrap"
-        >
+        <Link href="/" className="text-white font-bold text-lg whitespace-nowrap">
           <Image src="/images/logo/logo-FF.png" alt="MyShop" width={100} height={40} />
         </Link>
 
-        {/* Menu */}
+        {/* Menu chính */}
         <nav ref={navRef} className="flex space-x-2 relative">
           {navItems.map((item) => {
             const hasSubMenu = !!item.subMenu;
             const isOpen = openMenu === item.name;
-
             return (
               <div
                 key={item.name}
@@ -125,9 +131,8 @@ export default function Header() {
                   {hasSubMenu && <ChevronDownIcon className="w-4 h-4 ml-1" strokeWidth={3} />}
                 </div>
 
-                {/* Menu cấp 2 */}
                 {hasSubMenu && isOpen && (
-                  <div className="absolute top-full left-0 mt-0 bg-white rounded-md rounded-tl-none shadow-lg py-2 w-48 z-50 animate-fadeIn">
+                  <div className="absolute top-full left-0 mt-0 bg-white rounded-md shadow-lg py-2 w-48 z-50">
                     {item.subMenu.map((sub) => (
                       <Link
                         key={sub.name}
@@ -151,7 +156,7 @@ export default function Header() {
             placeholder="Tìm kiếm sản phẩm..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()} // nhấn Enter để search
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             className="w-full px-4 py-2 pl-10 rounded-md text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-gray-700 placeholder-gray-400 transition duration-200"
           />
           <MagnifyingGlassIcon
@@ -160,18 +165,16 @@ export default function Header() {
           />
         </div>
 
-        {/* Icon giỏ hàng + avatar */}
+        {/* Giỏ hàng + avatar */}
         <div className="flex items-center space-x-4">
-          <Link
-            href="/customer/cart"
-            className="relative text-white hover:text-green-200 transition"
-          >
+          <Link href="/customer/cart" className="relative text-white hover:text-green-200 transition">
             <ShoppingCartIcon className="w-6 h-6" />
-            {totalItems > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-xs text-white rounded-full px-1 min-w-[18px] text-center">
-                {totalItems}
-              </span>
-            )}
+            <span
+              className={`absolute -top-2 -right-2 text-xs rounded-full px-1 min-w-[18px] text-center 
+                ${totalItems === 0 ? "bg-gray-400 text-white opacity-70" : "bg-red-500 text-white"}`}
+            >
+              {totalItems}
+            </span>
           </Link>
 
           {/* Avatar + Dropdown */}
@@ -185,49 +188,33 @@ export default function Header() {
 
             {openUserMenu && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-50">
-                <Link
-                  href="/admin"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
-                >
-                  Admin
-                </Link>
-                <Link
-                  href="/customer/profile"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
-                >
-                  Thông tin cá nhân
-                </Link>
-                <Link
-                  href="/customer/order-history"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
-                >
-                  Lịch sử mua hàng
-                </Link>
-                <Link
-                  href="/customer/wishlist"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
-                >
-                  Danh sách yêu thích
-                </Link>
-                <Link
-                  href="/auth/login"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
-                >
-                  Đăng nhập
-                </Link>
-                <Link
-                  href="/auth/register"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
-                >
-                  Đăng ký
-                </Link>
-                <button
+                {!user && (
+                  <>
+                    <Link href="/auth/login" className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
+                      Đăng nhập
+                    </Link>
+                    <Link href="/auth/register" className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
+                      Đăng ký
+                    </Link>
+                  </>
+                )}
 
-                  onClick={handleLogout}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
-                >
-                  Đăng xuất
-                </button>
+                {user && (
+                  <>
+                    <Link href="/customer/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
+                      Thông tin cá nhân
+                    </Link>
+                    <Link href="/customer/order-history" className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
+                      Lịch sử mua hàng
+                    </Link>
+                    <Link href="/customer/wishlist" className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
+                      Danh sách yêu thích
+                    </Link>
+                    <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
+                      Đăng xuất
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>

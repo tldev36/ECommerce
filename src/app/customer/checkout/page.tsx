@@ -1,211 +1,226 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useCart } from "@/context/CartContext";
+import { useEffect, useState } from "react";
+import axios from "axios";
 import { useRouter } from "next/navigation";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCheckCircle } from "@fortawesome/free-solid-svg-icons";
+import AddressForm from "@/components/checkout/AddressForm";
+import { Address } from "@/types/address";
 
 export default function CheckoutPage() {
+  const { cart, clearCart, isLoggedIn } = useCart();
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-  const [phone, setPhone] = useState("");
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
 
-  const [cartItems] = useState([
-    {
-      id: 1,
-      name: "Gạo ST25 - Thơm ngon đặc sản",
-      price: 32000,
-      quantity: 2,
-      image: "/images/apple.jpg",
-      discount: 10,
-    },
-    {
-      id: 2,
-      name: "Gạo Lài Sữa",
-      price: 28000,
-      quantity: 1,
-      image: "/images/rice.jpg",
-      discount: 0,
-    },
-  ]);
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      try {
+        const res = await fetch("/api/shipping-address", {
+          method: "GET",
+          credentials: "include", // gửi cookie JWT nếu cần
+        });
+        const result = await res.json();
 
-  const calcPrice = (item: any) => {
-    if (item.discount && item.discount > 0) {
-      return item.price - (item.price * item.discount) / 100;
+        if (!res.ok) {
+          console.error("Lỗi fetch địa chỉ:", result.error);
+          return;
+        }
+
+        setAddresses(result.addresses || []);
+      } catch (err) {
+        console.error("Lỗi fetch địa chỉ:", err);
+      }
+    };
+
+    fetchAddresses();
+  }, []);
+
+
+
+  // 🟢 Chọn địa chỉ mặc định lần đầu
+  useEffect(() => {
+    if (addresses.length > 0 && selectedAddress === null) {
+      const defaultAddr = addresses.find(a => a.default === true);
+      setSelectedAddress(defaultAddr?.id ?? addresses[0].id ?? null);
     }
-    return item.price;
+  }, [addresses, selectedAddress]);
+
+  // 🟢 Thêm địa chỉ mới
+  const handleAddAddress = (newAddress: Address) => {
+    const newId = addresses.length > 0 ? Math.max(...addresses.map(a => a.id || 0)) + 1 : 1;
+    const added = { ...newAddress, id: newId };
+    setAddresses([...addresses, added]);
+    setShowForm(false);
   };
 
-  const totalPrice = cartItems.reduce(
-    (total, item) => total + calcPrice(item) * item.quantity,
-    0
-  );
+  // 🟢 Cập nhật địa chỉ
+  const handleUpdateAddress = (updatedAddress: Address) => {
+    setAddresses(prev =>
+      prev.map(a => (a.id === updatedAddress.id ? updatedAddress : a))
+    );
+    setEditingAddress(null);
+    setShowForm(false);
+  };
 
-  const handleOrder = () => {
-    if (!name || !address || !phone) {
-      alert("Vui lòng nhập đầy đủ thông tin!");
+
+  // 🟢 Đặt hàng
+  const handlePlaceOrder = () => {
+    if (!selectedAddress) {
+      alert("❌ Vui lòng chọn địa chỉ giao hàng!");
       return;
     }
-    setShowSuccess(true);
+
+    setLoading(true);
     setTimeout(() => {
-      router.push("/");
-    }, 3000);
+      alert("🎉 Đặt hàng thành công (mô phỏng)!");
+      clearCart();
+      router.push("/orders");
+    }, 1000);
   };
 
+
+  // 🧱 UI
   return (
-    <div className="max-w-6xl mx-auto p-4 mt-16 relative">
-      <h1 className="text-2xl font-bold mb-6">Thanh toán</h1>
+    <div className="mt-20 max-w-5xl mx-auto px-4 py-10">
+      <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">
+        🛒 Thanh toán
+      </h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Form thông tin */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="border rounded-lg p-6 shadow-sm">
-            <h2 className="text-lg font-semibold mb-4">Thông tin giao hàng</h2>
-            <form className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Họ và tên</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500"
-                  placeholder="Nguyễn Văn A"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Số điện thoại</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500"
-                  placeholder="0123 456 789"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Địa chỉ</label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500"
-                  placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Ghi chú</label>
-                <textarea
-                  className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500"
-                  rows={3}
-                  placeholder="Yêu cầu giao hàng..."
-                />
-              </div>
-            </form>
-          </div>
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* Cột trái - Địa chỉ */}
+        <div className="bg-white shadow-md rounded-2xl p-6">
+          <h2 className="text-lg font-semibold mb-4 text-gray-700">
+            📍 Địa chỉ giao hàng
+          </h2>
 
-          <div className="border rounded-lg p-6 shadow-sm">
-            <h2 className="text-lg font-semibold mb-4">Phương thức thanh toán</h2>
-            <div className="space-y-3">
-              <label className="flex items-center gap-3 border rounded-lg p-3 cursor-pointer hover:bg-gray-50">
-                <input type="radio" name="payment" defaultChecked />
-                <span>Thanh toán khi nhận hàng (COD)</span>
-              </label>
-              <label className="flex items-center gap-3 border rounded-lg p-3 cursor-pointer hover:bg-gray-50">
-                <input type="radio" name="payment" />
-                <span>Chuyển khoản ngân hàng</span>
-              </label>
-              <label className="flex items-center gap-3 border rounded-lg p-3 cursor-pointer hover:bg-gray-50">
-                <input type="radio" name="payment" />
-                <span>Thẻ tín dụng / Ghi nợ</span>
-              </label>
-            </div>
-          </div>
+          {addresses.length === 0 && (
+            <p className="text-gray-500 italic mb-3">
+              Chưa có địa chỉ. Hãy thêm mới!
+            </p>
+          )}
+
+          <ul className="space-y-4">
+            {addresses.map((addr) => (
+              <li
+                key={addr.id}
+                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-xl cursor-pointer transition ${selectedAddress === addr.id
+                  ? "border-green-600 bg-green-50"
+                  : "border-gray-200 hover:border-green-400"
+                  }`}
+
+              >
+                <div className="flex items-start gap-3">
+                  <input
+                    type="radio"
+                    name="address"
+                    className="mt-1"
+                    checked={selectedAddress === addr.id}
+                    onChange={() => setSelectedAddress(addr.id ?? null)}
+                  />
+                  <div>
+                    <p className="font-medium text-gray-800">
+                      {addr.recipient_name} - {addr.phone}
+                      {" "}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {addr.detail_address}, {addr.province_district_ward}{" "}
+                      {addr.default === true && (
+                        <span className="ml-2 text-xs text-white bg-green-600 px-2 py-0.5 rounded-full">
+                          Mặc định
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 📝 Nút sửa */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingAddress(addr);
+                    setShowForm(true);
+                  }}
+                  className="text-blue-600 text-sm hover:underline font-medium"
+                >
+                  📝 Sửa
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {/* Nút mở form */}
+          <button
+            className="mt-4 text-green-600 font-medium hover:underline"
+            onClick={() => {
+              setEditingAddress(null);
+              setShowForm(!showForm);
+            }}
+          >
+            ➕ {showForm ? "Đóng form" : "Thêm địa chỉ mới"}
+          </button>
+
+          {/* Form thêm/sửa */}
+          {showForm && (
+            <AddressForm
+              editingAddress={editingAddress}
+              handleAddAddress={handleAddAddress}
+              handleUpdateAddress={handleUpdateAddress}
+            />
+          )}
         </div>
 
-        {/* Tóm tắt đơn hàng */}
-        <div className="border rounded-lg p-6 shadow-sm h-fit">
-          <h2 className="text-lg font-semibold mb-4">Đơn hàng</h2>
-          <div className="space-y-4">
-            {cartItems.map((item) => (
-              <div key={item.id} className="flex items-center gap-4">
-                <Image
-                  src={item.image}
-                  alt={item.name}
-                  width={60}
-                  height={60}
-                  className="rounded-lg object-cover"
-                />
-                <div className="flex-1">
-                  <h3 className="text-sm font-medium">{item.name}</h3>
-                  <p className="text-gray-500 text-sm">x{item.quantity}</p>
-                </div>
-                <span className="text-red-500 font-semibold">
-                  {calcPrice(item).toLocaleString()}₫
+
+        {/* Cột phải - Giỏ hàng */}
+        <div className="bg-white shadow-md rounded-2xl p-6">
+          <h2 className="text-lg font-semibold mb-4 text-gray-700">
+            🛍️ Giỏ hàng của bạn
+          </h2>
+
+          <ul className="divide-y">
+            {cart.map((item) => (
+              <li
+                key={item.product_id}
+                className="flex justify-between py-3 text-gray-700"
+              >
+                <span>
+                  {item.name}{" "}
+                  <span className="text-sm text-gray-500">x {item.quantity}</span>
                 </span>
-              </div>
+                <span className="font-medium">
+                  {(item.price * item.quantity).toLocaleString()} ₫
+                </span>
+              </li>
             ))}
+          </ul>
+
+          <div className="mt-6 border-t pt-4 flex justify-between font-bold text-lg">
+            <span>Tổng cộng:</span>
+            <span className="text-green-600">
+              {cart
+                .reduce((sum, item) => sum + item.price * item.quantity, 0)
+                .toLocaleString()}{" "}
+              ₫
+            </span>
           </div>
 
-          <div className="mt-6 border-t pt-4">
-            <div className="flex justify-between mb-2">
-              <span>Tạm tính:</span>
-              <span>{totalPrice.toLocaleString()}₫</span>
-            </div>
-            <div className="flex justify-between mb-2">
-              <span>Phí vận chuyển:</span>
-              <span>30,000₫</span>
-            </div>
-            <div className="flex justify-between font-bold text-lg border-t pt-2">
-              <span>Tổng cộng:</span>
-              <span className="text-red-500">
-                {(totalPrice + 30000).toLocaleString()}₫
-              </span>
-            </div>
-            <button
-              onClick={handleOrder}
-              className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium">
-              Đặt hàng
-            </button>
-          </div>
+          <button
+            onClick={handlePlaceOrder}
+            disabled={loading}
+            className="w-full mt-6 bg-green-600 text-white py-3 rounded-xl hover:bg-green-700 transition text-lg font-medium disabled:opacity-50"
+          >
+            {loading ? "⏳ Đang xử lý..." : "Xác nhận đặt hàng"}
+          </button>
         </div>
       </div>
 
-      {/* Popup đẹp */}
-      {showSuccess && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-lg p-8 w-96 text-center animate-fadeIn">
-            <FontAwesomeIcon
-              icon={faCheckCircle}
-              className="text-green-500 text-6xl mx-auto mb-4"
-            />
-            <h2 className="text-2xl font-bold mb-2">Đặt hàng thành công!</h2>
-            <p className="text-gray-600 mb-4">
-              Cảm ơn bạn đã mua hàng. Chúng tôi sẽ liên hệ sớm.
-            </p>
-          </div>
-        </div>
 
-      )}
 
-      {/* Animation Tailwind */}
-      <style jsx>{`
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-in-out;
-        }
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-      `}</style>
     </div>
   );
+
 }

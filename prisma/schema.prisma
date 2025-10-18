@@ -20,29 +20,30 @@ model categories {
 }
 
 model products {
-  id                   Int                    @id @default(autoincrement())
-  name                 String
-  slug                 String                 @unique
-  price                Decimal                @db.Decimal(10, 2)
-  cost_price           Decimal                @db.Decimal(10, 2)
-  unit                 String
-  image                String
-  short                String?
-  category_id          Int?
-  featured             Boolean?               @default(false)
-  discount             Decimal?               @db.Decimal(5, 2)
-  is_new               Boolean?               @default(false)
-  is_best_seller       Boolean?               @default(false)
-  stock_quantity       Int?                   @default(0)
-  min_stock_level      Int?                   @default(0)
-  is_active            Boolean?               @default(true)
-  created_at           DateTime?              @default(now()) @db.Timestamp(6)
-  updated_at           DateTime?              @default(now()) @db.Timestamp(6)
-  cart_items           cart_items[]
-  categories           categories?            @relation(fields: [category_id], references: [id], onUpdate: NoAction)
-  purchase_order_items purchase_order_items[]
-  reviews              reviews[]
-  supplier_products    supplier_products[]
+  id                        Int                         @id @default(autoincrement())
+  name                      String
+  slug                      String                      @unique
+  price                     Decimal                     @db.Decimal(10, 2)
+  cost_price                Decimal                     @db.Decimal(10, 2)
+  unit                      String
+  image                     String
+  short                     String?
+  category_id               Int?
+  featured                  Boolean?                    @default(false)
+  discount                  Decimal?                    @db.Decimal(5, 2)
+  is_new                    Boolean?                    @default(false)
+  is_best_seller            Boolean?                    @default(false)
+  stock_quantity            Int?                        @default(0)
+  min_stock_level           Int?                        @default(0)
+  is_active                 Boolean?                    @default(true)
+  created_at                DateTime?                   @default(now()) @db.Timestamp(6)
+  updated_at                DateTime?                   @default(now()) @db.Timestamp(6)
+  cart_items                cart_items[]
+  categories                categories?                 @relation(fields: [category_id], references: [id], onUpdate: NoAction)
+  purchase_order_items      purchase_order_items[]
+  reviews                   reviews[]
+  supplier_products         supplier_products[]
+  user_product_interactions user_product_interactions[]
 }
 
 model coupon_products {
@@ -130,18 +131,17 @@ model reviews {
 }
 
 model shipping_addresses {
-  id          Int      @id @default(autoincrement())
-  user_id     Int?
-  full_name   String
-  phone       String
-  address     String
-  city        String
-  district    String?
-  ward        String?
-  postal_code String?
-  country     String?  @default("Vietnam")
-  orders      orders[]
-  users       users?   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                     Int       @id @default(autoincrement())
+  user_id                Int?
+  recipient_name         String
+  phone                  String
+  detail_address         String
+  province_district_ward String
+  create_at              DateTime? @db.Date
+  update_at              DateTime? @db.Date
+  default                String?   @db.Bit(1)
+  orders                 orders[]
+  users                  users?    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model supplier_products {
@@ -170,24 +170,25 @@ model suppliers {
 }
 
 model users {
-  id                 Int                  @id @default(autoincrement())
-  username           String?              @unique
-  name               String
-  email              String               @unique
-  password_hash      String
-  phone              String?
-  gender             String?
-  birthday           DateTime?            @db.Date
-  avatar             String?
-  is_active          Boolean?             @default(true)
-  role               String?              @default("customer")
-  created_at         DateTime?            @default(now()) @db.Timestamp(6)
-  updated_at         DateTime?            @default(now()) @db.Timestamp(6)
-  cart_items         cart_items[]
-  orders             orders[]
-  reviews            reviews[]
-  shipping_addresses shipping_addresses[]
-  wishlists          wishlists[]
+  id                        Int                         @id @default(autoincrement())
+  username                  String?                     @unique
+  name                      String
+  email                     String                      @unique
+  password_hash             String
+  phone                     String?
+  gender                    String?
+  birthday                  DateTime?                   @db.Date
+  avatar                    String?
+  is_active                 Boolean?                    @default(true)
+  role                      String?                     @default("customer")
+  created_at                DateTime?                   @default(now()) @db.Timestamp(6)
+  updated_at                DateTime?                   @default(now()) @db.Timestamp(6)
+  cart_items                cart_items[]
+  orders                    orders[]
+  reviews                   reviews[]
+  shipping_addresses        shipping_addresses[]
+  user_product_interactions user_product_interactions[]
+  wishlists                 wishlists[]
 }
 
 model wishlists {
@@ -211,4 +212,16 @@ model cart_items {
   users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cart_user")
 
   @@unique([user_id, product_id], map: "uq_cart_user_product")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model user_product_interactions {
+  id                 BigInt    @id @default(autoincrement())
+  user_id            Int
+  product_id         Int
+  interaction_type   String
+  interaction_weight Decimal?  @default(1.0) @db.Decimal(3, 2)
+  created_at         DateTime? @default(now()) @db.Timestamp(6)
+  products           products  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }

@@ -1,41 +1,75 @@
+// app/api/cart/[id]/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
 const SECRET = process.env.JWT_SECRET || "supersecret";
 
-export async function DELETE(
+// PUT: cập nhật số lượng sản phẩm
+export async function PUT(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    // 1. Lấy token từ cookie
-    const cookie = req.headers.get("cookie") || "";
-    const match = cookie.match(/token=([^;]+)/);
-    if (!match) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const token = match[1];
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
 
-    // 2. Giải mã token
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const decoded = jwt.verify(token, SECRET) as { id: number };
     const userId = decoded.id;
-
-    // 3. Xóa theo user_id + product_id
     const productId = parseInt(params.id);
-    await prisma.cart_items.deleteMany({
-      where: {
-        user_id: userId,
-        product_id: productId,
-      },
+    const { quantity } = await req.json();
+
+    // Kiểm tra cart item của user hiện tại
+    const existing = await prisma.cart_items.findFirst({
+      where: { user_id: userId, product_id: productId },
     });
 
-    // 4. Lấy giỏ hàng mới
-    const cart = await prisma.cart_items.findMany({
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Sản phẩm không có trong giỏ hàng" },
+        { status: 404 }
+      );
+    }
+
+    if (quantity <= 0) {
+      // Nếu số lượng <= 0 → xoá sản phẩm khỏi giỏ
+      await prisma.cart_items.delete({
+        where: { id: existing.id },
+      });
+    } else {
+      // Cập nhật lại số lượng
+      await prisma.cart_items.update({
+        where: { id: existing.id },
+        data: { quantity },
+      });
+    }
+
+    // Lấy lại giỏ hàng mới của đúng user
+    const updatedCart = await prisma.cart_items.findMany({
       where: { user_id: userId },
+      include: { products: true },
+      orderBy: { id: "asc" },
     });
+
+    const cart = updatedCart.map((item) => ({
+      id: item.id,
+      product_id: item.product_id,
+      name: item.products.name,
+      slug: item.products.slug,
+      price: item.products.price,
+      unit: item.products.unit,
+      image: item.products.image,
+      quantity: item.quantity,
+    }));
 
     return NextResponse.json({ cart });
   } catch (err) {
-    console.error("Lỗi khi xoá cart item:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("❌ PUT /api/cart/[id] error:", err);
+    return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
   }
 }
