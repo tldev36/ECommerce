@@ -18,6 +18,7 @@ const MENU_ITEMS = [
   { name: "Loại sản phẩm", icon: faShoppingBag, path: "/admin/categories" },
   { name: "Người dùng", icon: faUsers, path: "/admin/users" },
   { name: "Đơn hàng", icon: faCog, path: "/admin/orders" },
+    { name: "Giảm giá", icon: faCog, path: "/admin/coupons" },
 ];
 
 export default function Sidebar() {

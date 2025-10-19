@@ -6,6 +6,7 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import AddressForm from "@/components/checkout/AddressForm";
 import { Address } from "@/types/address";
+import CouponInput from "@/components/checkout/CouponInput"; // 🟢 import component
 
 export default function CheckoutPage() {
   const { cart, clearCart, isLoggedIn } = useCart();
@@ -13,6 +14,9 @@ export default function CheckoutPage() {
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [discount, setDiscount] = useState(0);
+  const [couponCode, setCouponCode] = useState("");
   const router = useRouter();
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
 
@@ -21,27 +25,17 @@ export default function CheckoutPage() {
       try {
         const res = await fetch("/api/shipping-address", {
           method: "GET",
-          credentials: "include", // gửi cookie JWT nếu cần
+          credentials: "include",
         });
         const result = await res.json();
-
-        if (!res.ok) {
-          console.error("Lỗi fetch địa chỉ:", result.error);
-          return;
-        }
-
-        setAddresses(result.addresses || []);
+        if (res.ok) setAddresses(result.addresses || []);
       } catch (err) {
         console.error("Lỗi fetch địa chỉ:", err);
       }
     };
-
     fetchAddresses();
   }, []);
 
-
-
-  // 🟢 Chọn địa chỉ mặc định lần đầu
   useEffect(() => {
     if (addresses.length > 0 && selectedAddress === null) {
       const defaultAddr = addresses.find(a => a.default === true);
@@ -49,7 +43,6 @@ export default function CheckoutPage() {
     }
   }, [addresses, selectedAddress]);
 
-  // 🟢 Thêm địa chỉ mới
   const handleAddAddress = (newAddress: Address) => {
     const newId = addresses.length > 0 ? Math.max(...addresses.map(a => a.id || 0)) + 1 : 1;
     const added = { ...newAddress, id: newId };
@@ -57,7 +50,6 @@ export default function CheckoutPage() {
     setShowForm(false);
   };
 
-  // 🟢 Cập nhật địa chỉ
   const handleUpdateAddress = (updatedAddress: Address) => {
     setAddresses(prev =>
       prev.map(a => (a.id === updatedAddress.id ? updatedAddress : a))
@@ -66,8 +58,35 @@ export default function CheckoutPage() {
     setShowForm(false);
   };
 
+  // 🟢 Hàm áp dụng mã giảm giá
+  const handleApplyCoupon = async (code: string) => {
+    try {
+      setCouponLoading(true);
+      // Giả lập API kiểm tra mã giảm giá
+      await new Promise(res => setTimeout(res, 800));
 
-  // 🟢 Đặt hàng
+      // 🔹 Demo: mã "GIAM10" giảm 10%, "FREESHIP" giảm 30000₫
+      if (code === "GIAM10") {
+        setDiscount(total * 0.1);
+        setCouponCode(code);
+        alert("🎉 Áp dụng mã GIAM10: giảm 10%");
+      } else if (code === "FREESHIP") {
+        setDiscount(30000);
+        setCouponCode(code);
+        alert("🚚 Áp dụng mã FREESHIP: giảm 30.000₫");
+      } else {
+        alert("❌ Mã không hợp lệ hoặc đã hết hạn!");
+      }
+    } catch (err) {
+      alert("Đã có lỗi xảy ra khi áp dụng mã!");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const finalTotal = Math.max(total - discount, 0);
+
   const handlePlaceOrder = () => {
     if (!selectedAddress) {
       alert("❌ Vui lòng chọn địa chỉ giao hàng!");
@@ -82,8 +101,6 @@ export default function CheckoutPage() {
     }, 1000);
   };
 
-
-  // 🧱 UI
   return (
     <div className="mt-20 max-w-5xl mx-auto px-4 py-10">
       <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">
@@ -91,7 +108,7 @@ export default function CheckoutPage() {
       </h1>
 
       <div className="grid md:grid-cols-2 gap-8">
-        {/* Cột trái - Địa chỉ */}
+        {/* 🧩 Cột trái - Địa chỉ */}
         <div className="bg-white shadow-md rounded-2xl p-6">
           <h2 className="text-lg font-semibold mb-4 text-gray-700">
             📍 Địa chỉ giao hàng
@@ -107,11 +124,11 @@ export default function CheckoutPage() {
             {addresses.map((addr) => (
               <li
                 key={addr.id}
-                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-xl cursor-pointer transition ${selectedAddress === addr.id
-                  ? "border-green-600 bg-green-50"
-                  : "border-gray-200 hover:border-green-400"
-                  }`}
-
+                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-xl cursor-pointer transition ${
+                  selectedAddress === addr.id
+                    ? "border-green-600 bg-green-50"
+                    : "border-gray-200 hover:border-green-400"
+                }`}
               >
                 <div className="flex items-start gap-3">
                   <input
@@ -124,7 +141,6 @@ export default function CheckoutPage() {
                   <div>
                     <p className="font-medium text-gray-800">
                       {addr.recipient_name} - {addr.phone}
-                      {" "}
                     </p>
                     <p className="text-sm text-gray-600">
                       {addr.detail_address}, {addr.province_district_ward}{" "}
@@ -137,7 +153,6 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {/* 📝 Nút sửa */}
                 <button
                   type="button"
                   onClick={(e) => {
@@ -153,7 +168,6 @@ export default function CheckoutPage() {
             ))}
           </ul>
 
-          {/* Nút mở form */}
           <button
             className="mt-4 text-green-600 font-medium hover:underline"
             onClick={() => {
@@ -164,7 +178,6 @@ export default function CheckoutPage() {
             ➕ {showForm ? "Đóng form" : "Thêm địa chỉ mới"}
           </button>
 
-          {/* Form thêm/sửa */}
           {showForm && (
             <AddressForm
               editingAddress={editingAddress}
@@ -174,8 +187,7 @@ export default function CheckoutPage() {
           )}
         </div>
 
-
-        {/* Cột phải - Giỏ hàng */}
+        {/* 🧩 Cột phải - Giỏ hàng */}
         <div className="bg-white shadow-md rounded-2xl p-6">
           <h2 className="text-lg font-semibold mb-4 text-gray-700">
             🛍️ Giỏ hàng của bạn
@@ -198,14 +210,25 @@ export default function CheckoutPage() {
             ))}
           </ul>
 
-          <div className="mt-6 border-t pt-4 flex justify-between font-bold text-lg">
-            <span>Tổng cộng:</span>
-            <span className="text-green-600">
-              {cart
-                .reduce((sum, item) => sum + item.price * item.quantity, 0)
-                .toLocaleString()}{" "}
-              ₫
-            </span>
+          {/* 🧾 Nhập mã giảm giá */}
+          <CouponInput onApply={handleApplyCoupon} loading={couponLoading} />
+
+          {/* 🧮 Tổng tiền */}
+          <div className="mt-6 border-t pt-4 space-y-2 font-bold text-lg">
+            <div className="flex justify-between">
+              <span>Tạm tính:</span>
+              <span>{total.toLocaleString()} ₫</span>
+            </div>
+            {discount > 0 && (
+              <div className="flex justify-between text-green-600">
+                <span>Giảm giá ({couponCode}):</span>
+                <span>-{discount.toLocaleString()} ₫</span>
+              </div>
+            )}
+            <div className="flex justify-between text-green-700 border-t pt-2">
+              <span>Tổng cộng:</span>
+              <span>{finalTotal.toLocaleString()} ₫</span>
+            </div>
           </div>
 
           <button
@@ -217,10 +240,6 @@ export default function CheckoutPage() {
           </button>
         </div>
       </div>
-
-
-
     </div>
   );
-
 }

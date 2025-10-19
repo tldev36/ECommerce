@@ -1,21 +1,33 @@
 import { Category } from "./category";
 
-export interface Product {
+/**
+ * Dữ liệu Product trả về từ API (Prisma → JSON)
+ * - Thời gian là dạng string (ISO)
+ */
+export interface ProductApi {
   id: number;
   name: string;
   slug: string;
-  price: number;             // Prisma Decimal -> number
-  cost_price: number;        // Prisma Decimal -> number
+  price: number;
+  cost_price: number;
   unit: string;
   image: string;
   short?: string | null;
   category_id?: number | null;
   featured?: boolean | null;
-  discount?: number | null;  // Prisma Decimal -> number
+  discount?: number | null;
   is_new?: boolean;
   is_best_seller?: boolean;
+  created_at?: string;   // <-- API trả về chuỗi
+  updated_at?: string;
+  categories?: Category | null;
+}
+
+/**
+ * Dữ liệu Product dùng trong client (UI)
+ * - Thời gian là đối tượng Date
+ */
+export type Product = Omit<ProductApi, "created_at" | "updated_at"> & {
   created_at?: Date;
   updated_at?: Date;
-
-  categories?: Category | null; // Quan hệ nhiều-1
-}
+};
