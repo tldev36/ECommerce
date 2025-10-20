@@ -1,15 +1,19 @@
 "use client";
 
 import { useCart } from "@/context/CartContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import AddressForm from "@/components/checkout/AddressForm";
 import { Address } from "@/types/address";
-import CouponInput from "@/components/checkout/CouponInput"; // 🟢 import component
+import CouponInput from "@/components/checkout/CouponInput";
+import InvoiceModal from "@/components/checkout/InvoiceModal";
 
 export default function CheckoutPage() {
-  const { cart, clearCart, isLoggedIn } = useCart();
+  const { cart, clearCart } = useCart();
+  const router = useRouter();
+
+  // 🧩 State quản lý
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -17,9 +21,21 @@ export default function CheckoutPage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [couponCode, setCouponCode] = useState("");
-  const router = useRouter();
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
 
+  const [showInvoice, setShowInvoice] = useState(false);
+  const [orderData, setOrderData] = useState<any>(null);
+
+  const selectedAddr = addresses.find(a => a.id === selectedAddress);
+
+  // 🧮 Tính tổng tiền
+  const total = useMemo(
+    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [cart]
+  );
+  const finalTotal = useMemo(() => Math.max(total - discount, 0), [total, discount]);
+
+  // 📦 Lấy danh sách địa chỉ
   useEffect(() => {
     const fetchAddresses = async () => {
       try {
@@ -36,69 +52,89 @@ export default function CheckoutPage() {
     fetchAddresses();
   }, []);
 
+  // 🔹 Tự chọn địa chỉ mặc định
   useEffect(() => {
     if (addresses.length > 0 && selectedAddress === null) {
-      const defaultAddr = addresses.find(a => a.default === true);
+      const defaultAddr = addresses.find((a) => a.default === true);
       setSelectedAddress(defaultAddr?.id ?? addresses[0].id ?? null);
     }
   }, [addresses, selectedAddress]);
 
+  // ➕ Thêm địa chỉ
   const handleAddAddress = (newAddress: Address) => {
-    const newId = addresses.length > 0 ? Math.max(...addresses.map(a => a.id || 0)) + 1 : 1;
-    const added = { ...newAddress, id: newId };
-    setAddresses([...addresses, added]);
+    const newId =
+      addresses.length > 0
+        ? Math.max(...addresses.map((a) => a.id || 0)) + 1
+        : 1;
+    setAddresses([...addresses, { ...newAddress, id: newId }]);
     setShowForm(false);
   };
 
-  const handleUpdateAddress = (updatedAddress: Address) => {
-    setAddresses(prev =>
-      prev.map(a => (a.id === updatedAddress.id ? updatedAddress : a))
+  // 📝 Cập nhật địa chỉ
+  const handleUpdateAddress = (updated: Address) => {
+    setAddresses((prev) =>
+      prev.map((a) => (a.id === updated.id ? updated : a))
     );
     setEditingAddress(null);
     setShowForm(false);
   };
 
-  // 🟢 Hàm áp dụng mã giảm giá
+  // 🎟️ Áp dụng mã giảm giá
   const handleApplyCoupon = async (code: string) => {
     try {
       setCouponLoading(true);
-      // Giả lập API kiểm tra mã giảm giá
-      await new Promise(res => setTimeout(res, 800));
+      const res = await axios.post<CouponValidationResponse>("/api/coupons/validate", { code });
 
-      // 🔹 Demo: mã "GIAM10" giảm 10%, "FREESHIP" giảm 30000₫
-      if (code === "GIAM10") {
-        setDiscount(total * 0.1);
+      const result = res.data;
+
+      if (!result.valid) {
+        alert(result.message || "❌ Mã không hợp lệ hoặc đã hết hạn!");
+        return;
+      }
+
+      if (result.discount_percent) {
+        setDiscount((total * result.discount_percent) / 100);
         setCouponCode(code);
-        alert("🎉 Áp dụng mã GIAM10: giảm 10%");
-      } else if (code === "FREESHIP") {
-        setDiscount(30000);
+        alert(`🎉 Áp dụng mã ${code}: giảm ${result.discount_percent}%`);
+      } else if (result.discount_amount) {
+        setDiscount(result.discount_amount);
         setCouponCode(code);
-        alert("🚚 Áp dụng mã FREESHIP: giảm 30.000₫");
+        alert(
+          `🎉 Áp dụng mã ${code}: giảm ${result.discount_amount.toLocaleString()}₫`
+        );
       } else {
-        alert("❌ Mã không hợp lệ hoặc đã hết hạn!");
+        alert("❌ Mã không có giá trị giảm hợp lệ!");
       }
     } catch (err) {
-      alert("Đã có lỗi xảy ra khi áp dụng mã!");
+      console.error("Lỗi khi áp dụng mã:", err);
+      alert("⚠️ Không thể áp dụng mã giảm giá. Vui lòng thử lại.");
     } finally {
       setCouponLoading(false);
     }
   };
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const finalTotal = Math.max(total - discount, 0);
-
+  // 🛍️ Xác nhận đặt hàng
   const handlePlaceOrder = () => {
     if (!selectedAddress) {
       alert("❌ Vui lòng chọn địa chỉ giao hàng!");
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
-      alert("🎉 Đặt hàng thành công (mô phỏng)!");
-      clearCart();
-      router.push("/orders");
-    }, 1000);
+    const orderInfo = {
+      orderCode: "ORD" + Date.now(),
+      date: new Date().toLocaleString("vi-VN"),
+      recipient: selectedAddr?.recipient_name,
+      address: selectedAddr
+        ? `${selectedAddr.detail_address}, ${selectedAddr.province_district_ward}`
+        : "",
+      items: cart,
+      total,
+      discount,
+      finalTotal,
+    };
+
+    setOrderData(orderInfo);
+    setShowInvoice(true); // 🧾 Mở modal phiếu bán hàng
   };
 
   return (
@@ -114,59 +150,58 @@ export default function CheckoutPage() {
             📍 Địa chỉ giao hàng
           </h2>
 
-          {addresses.length === 0 && (
+          {addresses.length === 0 ? (
             <p className="text-gray-500 italic mb-3">
               Chưa có địa chỉ. Hãy thêm mới!
             </p>
-          )}
-
-          <ul className="space-y-4">
-            {addresses.map((addr) => (
-              <li
-                key={addr.id}
-                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-xl cursor-pointer transition ${
-                  selectedAddress === addr.id
+          ) : (
+            <ul className="space-y-4">
+              {addresses.map((addr) => (
+                <li
+                  key={addr.id}
+                  className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-xl cursor-pointer transition ${selectedAddress === addr.id
                     ? "border-green-600 bg-green-50"
                     : "border-gray-200 hover:border-green-400"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="radio"
-                    name="address"
-                    className="mt-1"
-                    checked={selectedAddress === addr.id}
-                    onChange={() => setSelectedAddress(addr.id ?? null)}
-                  />
-                  <div>
-                    <p className="font-medium text-gray-800">
-                      {addr.recipient_name} - {addr.phone}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {addr.detail_address}, {addr.province_district_ward}{" "}
-                      {addr.default === true && (
-                        <span className="ml-2 text-xs text-white bg-green-600 px-2 py-0.5 rounded-full">
-                          Mặc định
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingAddress(addr);
-                    setShowForm(true);
-                  }}
-                  className="text-blue-600 text-sm hover:underline font-medium"
+                    }`}
                 >
-                  📝 Sửa
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="address"
+                      className="mt-1"
+                      checked={selectedAddress === addr.id}
+                      onChange={() => setSelectedAddress(addr.id ?? null)}
+                    />
+                    <div>
+                      <p className="font-medium text-gray-800">
+                        {addr.recipient_name} - {addr.phone}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {addr.detail_address}, {addr.province_district_ward}{" "}
+                        {addr.default && (
+                          <span className="ml-2 text-xs text-white bg-green-600 px-2 py-0.5 rounded-full">
+                            Mặc định
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingAddress(addr);
+                      setShowForm(true);
+                    }}
+                    className="text-blue-600 text-sm hover:underline font-medium"
+                  >
+                    📝 Sửa
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           <button
             className="mt-4 text-green-600 font-medium hover:underline"
@@ -210,7 +245,7 @@ export default function CheckoutPage() {
             ))}
           </ul>
 
-          {/* 🧾 Nhập mã giảm giá */}
+          {/* 🎟️ Nhập mã giảm giá */}
           <CouponInput onApply={handleApplyCoupon} loading={couponLoading} />
 
           {/* 🧮 Tổng tiền */}
@@ -219,12 +254,14 @@ export default function CheckoutPage() {
               <span>Tạm tính:</span>
               <span>{total.toLocaleString()} ₫</span>
             </div>
+
             {discount > 0 && (
               <div className="flex justify-between text-green-600">
                 <span>Giảm giá ({couponCode}):</span>
                 <span>-{discount.toLocaleString()} ₫</span>
               </div>
             )}
+
             <div className="flex justify-between text-green-700 border-t pt-2">
               <span>Tổng cộng:</span>
               <span>{finalTotal.toLocaleString()} ₫</span>
@@ -238,6 +275,13 @@ export default function CheckoutPage() {
           >
             {loading ? "⏳ Đang xử lý..." : "Xác nhận đặt hàng"}
           </button>
+
+          {/* 🧾 Hiển thị modal phiếu bán hàng */}
+          <InvoiceModal
+            isOpen={showInvoice}
+            onClose={() => setShowInvoice(false)}
+            order={orderData}
+          />
         </div>
       </div>
     </div>
