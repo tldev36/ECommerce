@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBell, faMagnifyingGlass, faCheck, faUserPlus, faChartLine, faEnvelope } from "@fortawesome/free-solid-svg-icons";
 import Link from "next/link";
+import Cookies from "js-cookie";
+import { useRouter } from "next/navigation";
 
 interface Notification {
     id: number;
@@ -66,6 +68,9 @@ export default function Header() {
     const notifRef = useRef<HTMLDivElement>(null);
     const avatarRef = useRef<HTMLDivElement>(null);
 
+    const [user, setUser] = useState<any>(null);
+    const router = useRouter();
+
     // Click outside để đóng dropdown
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -81,6 +86,15 @@ export default function Header() {
     }, []);
 
     const unreadCount = notifications.length;
+
+    // Logout
+    const handleLogout = async () => {
+        await fetch("/api/auth/logout", { method: "POST" });
+        Cookies.remove("cart");
+        // setCart([]);
+        setUser(null);
+        router.push("/auth/login");
+    };
 
     return (
         <header className="flex items-center justify-between bg-white h-16 p-4 border-b border-gray-200">
@@ -165,7 +179,12 @@ export default function Header() {
                                     <Link href="/customer/home">Trang người dùng</Link>
                                 </li>
                                 <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">Hồ sơ</li>
-                                <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">Đăng xuất</li>
+                                <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">
+
+                                    <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
+                                        Đăng xuất
+                                    </button>
+                                </li>
                             </ul>
                         </div>
                     )}

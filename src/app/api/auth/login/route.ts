@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     // 9️⃣ Response
     return NextResponse.json({
       message: "Đăng nhập thành công",
-      user: { id: user.id, name: user.name, email: user.email },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
       cart: newCart,
     });
 

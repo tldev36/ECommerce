@@ -55,6 +55,10 @@ export default function LoginPage() {
       const loginData = await res.json();
       console.log("JWT Token:", loginData.token);
 
+      // ✅ Lưu token hoặc chỉ cần role từ server
+      const role = loginData?.user?.role;
+      console.log("Role:", role);
+
       // Merge giỏ hàng từ cookie (nếu có)
       const tempCart = Cookies.get("cart_temp")
         ? JSON.parse(Cookies.get("cart_temp")!)
@@ -79,7 +83,12 @@ export default function LoginPage() {
         }
       }
 
-      router.push(redirect);
+      // ✅ Chuyển hướng theo role
+      if (role === "admin") {
+        router.push("/admin/dashboard");
+      } else {
+        router.push(redirect || "/customer/home");
+      }
     } catch (err) {
       console.error(err);
       setError("root", { message: "Lỗi server. Vui lòng thử lại!" });

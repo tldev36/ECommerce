@@ -63,7 +63,8 @@ model coupons {
   valid_from       DateTime?         @db.Timestamp(6)
   valid_until      DateTime?         @db.Timestamp(6)
   usage_limit      Int?
-  created_at       DateTime?         @default(now()) @db.Timestamp(6)
+  status           String?           @db.Bit(1)
+  discount_amount  Decimal?          @db.Decimal(10, 2)
   coupon_products  coupon_products[]
   orders           orders[]
 }
