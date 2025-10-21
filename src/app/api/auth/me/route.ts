@@ -5,7 +5,6 @@ const SECRET = process.env.JWT_SECRET || "supersecret";
 
 export async function GET(req: Request) {
   try {
-    // Lấy cookie
     const cookieHeader = req.headers.get("cookie") || "";
     const token = cookieHeader
       .split("; ")
@@ -16,13 +15,17 @@ export async function GET(req: Request) {
       return NextResponse.json({ user: null }, { status: 200 });
     }
 
-    // Giải mã token
-    const decoded = jwt.verify(token, SECRET) as { id: number; email: string };
+    // Giải mã token, bao gồm role
+    const decoded = jwt.verify(token, SECRET) as {
+      id: number;
+      email: string;
+      role?: string;
+    };
 
-    // Trả về user
+    // Trả về user kèm role
     return NextResponse.json({ user: decoded }, { status: 200 });
   } catch (error) {
-    // Nếu token lỗi hoặc hết hạn
+    // Token lỗi hoặc hết hạn
     return NextResponse.json({ user: null }, { status: 401 });
   }
 }
