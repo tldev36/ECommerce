@@ -7,4 +7,5 @@ export interface CartItem {
   unit: string;
   image: string;
   quantity: number;
+  unit?: number; // in grams
 }

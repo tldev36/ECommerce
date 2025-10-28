@@ -6,8 +6,8 @@ import Header from "@/components/layout-admin/Header";
 
 const SECRET = process.env.JWT_SECRET || "supersecret";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = cookies();
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
 
   if (!token) {

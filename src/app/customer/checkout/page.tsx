@@ -8,9 +8,12 @@ import AddressForm from "@/components/checkout/AddressForm";
 import { Address } from "@/types/address";
 import CouponInput from "@/components/checkout/CouponInput";
 import InvoiceModal from "@/components/checkout/InvoiceModal";
+import PaymentMethodSelector from "@/components/checkout/PaymentMethodSelector";
+import ShippingFeeCalculator from "@/components/checkout/ShippingFeeCalculator";
+import type { PaymentMethod } from "@/types/order";
 
 export default function CheckoutPage() {
-  const { cart, clearCart } = useCart();
+  const { cart, clearCart, isLoggedIn, user } = useCart();
   const router = useRouter();
 
   // 🧩 State quản lý
@@ -22,6 +25,11 @@ export default function CheckoutPage() {
   const [discount, setDiscount] = useState(0);
   const [couponCode, setCouponCode] = useState("");
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [shippingFee, setShippingFee] = useState(0);
+
+
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
+
 
   const [showInvoice, setShowInvoice] = useState(false);
   const [orderData, setOrderData] = useState<any>(null);
@@ -33,7 +41,12 @@ export default function CheckoutPage() {
     () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [cart]
   );
-  const finalTotal = useMemo(() => Math.max(total - discount, 0), [total, discount]);
+
+  const finalTotal = useMemo(() => Math.max(total - discount + shippingFee, 0), [
+    total,
+    discount,
+    shippingFee,
+  ]);
 
   // 📦 Lấy danh sách địa chỉ
   useEffect(() => {
@@ -59,6 +72,16 @@ export default function CheckoutPage() {
       setSelectedAddress(defaultAddr?.id ?? addresses[0].id ?? null);
     }
   }, [addresses, selectedAddress]);
+
+  //
+
+  const handleDeleteAddress = (id: number) => {
+    setAddresses(prev => prev.filter(addr => addr.id !== id));
+    if (selectedAddress === id) setSelectedAddress(null);
+    setEditingAddress(null);
+    setShowForm(false);
+  };
+
 
   // ➕ Thêm địa chỉ
   const handleAddAddress = (newAddress: Address) => {
@@ -114,28 +137,76 @@ export default function CheckoutPage() {
   };
 
   // 🛍️ Xác nhận đặt hàng
-  const handlePlaceOrder = () => {
-    if (!selectedAddress) {
-      alert("❌ Vui lòng chọn địa chỉ giao hàng!");
+  const handlePlaceOrder = async () => {
+    // 🧩 Kiểm tra đăng nhập trước
+    if (!isLoggedIn || !user) {
+      alert("⚠️ Bạn cần đăng nhập trước khi đặt hàng!");
+      // 👉 Nếu muốn chuyển về trang đăng nhập:
+      // router.push("/login");
       return;
     }
 
-    const orderInfo = {
-      orderCode: "ORD" + Date.now(),
-      date: new Date().toLocaleString("vi-VN"),
-      recipient: selectedAddr?.recipient_name,
-      address: selectedAddr
-        ? `${selectedAddr.detail_address}, ${selectedAddr.province_district_ward}`
-        : "",
-      items: cart,
-      total,
-      discount,
-      finalTotal,
-    };
+    if (!selectedAddress) {
+      alert("⚠️ Vui lòng chọn địa chỉ giao hàng!");
+      return;
+    }
 
-    setOrderData(orderInfo);
-    setShowInvoice(true); // 🧾 Mở modal phiếu bán hàng
+    if (paymentMethod !== "cod") {
+      alert("🚧 Tính năng thanh toán này đang được bảo trì, vui lòng chọn COD!");
+      return;
+    }
+
+    try {
+      const res = await axios.post("/api/orders", {
+        user_id: user.id,
+        shipping_address_id: selectedAddress,
+        items: cart,
+        total_amount: total + shippingFee,
+        payment_method: paymentMethod,
+      });
+
+      const { success, order } = res.data as { success: boolean; order: any };
+
+      if (success) {
+        alert(`🎉 Đặt hàng thành công! Mã đơn: ${order.order_code}`);
+        clearCart(); // 🧹 Dọn giỏ hàng
+        // router.push(`/orders/${order.id}`); // 👉 hoặc chuyển hướng nếu muốn
+      } else {
+        alert("❌ Lỗi khi tạo đơn hàng!");
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert("⚠️ Lỗi khi kết nối đến server!");
+    }
   };
+
+  // 🧮 Tính tổng cân nặng (gram)
+  const totalWeight = useMemo(() => {
+    return cart.reduce((sum, item) => {
+      let w = 0;
+
+      if (typeof item.unit === "string") {
+        // Lấy phần số (vd: "5000gram" -> 5000, "2.5kg" -> 2.5)
+        const value = parseFloat(item.unit);
+        const lower = item.unit.toLowerCase();
+
+        if (lower.includes("kg")) {
+          w = value * 1000; // đổi kg -> gram
+        } else if (lower.includes("g")) {
+          w = value; // gram thì giữ nguyên
+        } else {
+          // Nếu không có đơn vị, giả định là gram
+          w = value;
+        }
+      } else if (typeof item.unit === "number") {
+        w = item.unit; // Nếu DB là số rồi thì giữ nguyên
+      }
+
+      return sum + w * (item.quantity || 1);
+    }, 0);
+  }, [cart]);
+
+
 
   return (
     <div className="mt-20 max-w-5xl mx-auto px-4 py-10">
@@ -156,50 +227,57 @@ export default function CheckoutPage() {
             </p>
           ) : (
             <ul className="space-y-4">
-              {addresses.map((addr) => (
-                <li
-                  key={addr.id}
-                  className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-xl cursor-pointer transition ${selectedAddress === addr.id
-                    ? "border-green-600 bg-green-50"
-                    : "border-gray-200 hover:border-green-400"
-                    }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="radio"
-                      name="address"
-                      className="mt-1"
-                      checked={selectedAddress === addr.id}
-                      onChange={() => setSelectedAddress(addr.id ?? null)}
-                    />
-                    <div>
-                      <p className="font-medium text-gray-800">
-                        {addr.recipient_name} - {addr.phone}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {addr.detail_address}, {addr.province_district_ward}{" "}
-                        {addr.default && (
-                          <span className="ml-2 text-xs text-white bg-green-600 px-2 py-0.5 rounded-full">
-                            Mặc định
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
+              {addresses.map((addr) => {
+                // đảm bảo id luôn có kiểu number
+                const id = addr.id ?? 0;
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingAddress(addr);
-                      setShowForm(true);
-                    }}
-                    className="text-blue-600 text-sm hover:underline font-medium"
+                return (
+                  <li
+                    key={id}
+                    onClick={() => setSelectedAddress(id)}
+                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-xl cursor-pointer transition 
+              ${selectedAddress === id
+                        ? "border-green-600 bg-green-50"
+                        : "border-gray-200 hover:border-green-400"
+                      }`}
                   >
-                    📝 Sửa
-                  </button>
-                </li>
-              ))}
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="radio"
+                        name="address"
+                        className="mt-1 cursor-pointer"
+                        checked={selectedAddress === id}
+                        onChange={() => setSelectedAddress(id)}
+                      />
+                      <div>
+                        <p className="font-medium text-gray-800">
+                          {addr.recipient_name} - {addr.phone}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {addr.detail_address}, {addr.province_district_ward}{" "}
+                          {addr.default && (
+                            <span className="ml-2 text-xs text-white bg-green-600 px-2 py-0.5 rounded-full">
+                              Mặc định
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation(); // tránh chọn radio khi bấm "Sửa"
+                        setEditingAddress(addr);
+                        setShowForm(true);
+                      }}
+                      className="text-blue-600 text-sm hover:underline font-medium"
+                    >
+                      📝 Sửa
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
 
@@ -218,15 +296,29 @@ export default function CheckoutPage() {
               editingAddress={editingAddress}
               handleAddAddress={handleAddAddress}
               handleUpdateAddress={handleUpdateAddress}
+              handleDeleteAddress={handleDeleteAddress}
             />
           )}
         </div>
+
 
         {/* 🧩 Cột phải - Giỏ hàng */}
         <div className="bg-white shadow-md rounded-2xl p-6">
           <h2 className="text-lg font-semibold mb-4 text-gray-700">
             🛍️ Giỏ hàng của bạn
           </h2>
+
+
+          {/* Sau khi người dùng chọn địa chỉ */}
+          <ShippingFeeCalculator
+            key={`${selectedAddress}-${addresses.length}-${selectedAddr?.province_district_ward || ""}`}
+            customerAddress={selectedAddr?.province_district_ward || ""}
+            weight={totalWeight}
+            onFeeChange={(fee) => setShippingFee(fee)}
+          />
+
+
+          {/* 🛒 Danh sách sản phẩm */}
 
           <ul className="divide-y">
             {cart.map((item) => (
@@ -267,6 +359,14 @@ export default function CheckoutPage() {
               <span>{finalTotal.toLocaleString()} ₫</span>
             </div>
           </div>
+
+          {/* 💳 Chọn phương thức thanh toán */}
+          <PaymentMethodSelector
+            selectedMethod={paymentMethod}
+            onChange={setPaymentMethod}
+          />
+
+
 
           <button
             onClick={handlePlaceOrder}

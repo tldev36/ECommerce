@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import axios from "axios";
 import { Address } from "@/types/address";
 import VietnamAddressSelector from "@/components/checkout/VietnamAddressSelector";
 
@@ -8,27 +9,30 @@ interface AddressFormProps {
   editingAddress: Address | null;
   handleAddAddress: (newAddress: Address) => void;
   handleUpdateAddress: (updatedAddress: Address) => void;
+  handleDeleteAddress?: (deletedId: number) => void;
 }
 
 export default function AddressForm({
   editingAddress,
   handleAddAddress,
   handleUpdateAddress,
+  handleDeleteAddress,
 }: AddressFormProps) {
   const [recipientName, setRecipientName] = useState("");
   const [phone, setPhone] = useState("");
   const [detailAddress, setDetailAddress] = useState("");
-  const [location, setLocation] = useState(""); // tỉnh/huyện/xã
-  const [isDefault, setIsDefault] = useState(false); // ✅ Mặc định
+  const [location, setLocation] = useState(""); // Tỉnh / Huyện / Xã
+  const [isDefault, setIsDefault] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // ⚙️ Khi bấm "Sửa", đổ dữ liệu lên form
   useEffect(() => {
     if (editingAddress) {
       setRecipientName(editingAddress.recipient_name);
       setPhone(editingAddress.phone);
       setDetailAddress(editingAddress.detail_address);
       setLocation(editingAddress.province_district_ward || "");
-      setIsDefault(editingAddress.default || false); // nếu có mặc định
+      setIsDefault(editingAddress.default || false);
     } else {
       setRecipientName("");
       setPhone("");
@@ -38,53 +42,86 @@ export default function AddressForm({
     }
   }, [editingAddress]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  // 🔹 Hàm thêm địa chỉ mới
+  const addAddress = async () => {
+    const data = {
+      recipient_name: recipientName,
+      phone,
+      detail_address: detailAddress,
+      province_district_ward: location,
+      default: isDefault,
+    };
+
+    const res = await axios.post<any>("/api/shipping-address", data, {
+      withCredentials: true,
+    });
+
+    return res.data.address;
+  };
+
+  // 🔹 Hàm cập nhật địa chỉ cũ
+  const updateAddress = async () => {
+
 
     const data = {
       recipient_name: recipientName,
       phone,
       detail_address: detailAddress,
       province_district_ward: location,
-      default: isDefault, // gửi thông tin mặc định
+      default: isDefault,
     };
 
+    const res = await axios.put<any>(
+      `/api/shipping-address/${editingAddress?.id}`,
+      data,
+      { withCredentials: true }
+    );
+
+    return res.data.address;
+  };
+
+  const deleteAddress = async () => {
+    if (!editingAddress?.id) return;
+    if (!confirm("Bạn có chắc muốn xóa địa chỉ này?")) return;
+
+    await axios.delete(`/api/shipping-address/${editingAddress.id}`, {
+      withCredentials: true,
+    });
+
+    handleDeleteAddress?.(editingAddress.id);
+    alert("🗑️ Đã xóa địa chỉ thành công!");
+  };
+
+
+  // 🧾 Hàm submit form
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
     try {
-      const res = await fetch(
-        editingAddress ? `/api/shipping-address/${editingAddress.id}` : "/api/shipping-address",
-        {
-          method: editingAddress ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-          credentials: "include", // gửi cookie JWT
-        }
-      );
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        alert("Lỗi lưu địa chỉ: " + (result.error || "Server error"));
-        return;
-      }
-
+      let savedAddress;
       if (editingAddress) {
-        handleUpdateAddress(result.address); // cập nhật parent
-        alert("Cập nhật địa chỉ thành công");
+        savedAddress = await updateAddress();
+        handleUpdateAddress(savedAddress);
+        alert("✅ Cập nhật địa chỉ thành công!");
       } else {
-        handleAddAddress(result.address); // thêm mới vào parent
-        alert("Thêm địa chỉ thành công");
+        savedAddress = await addAddress();
+        handleAddAddress(savedAddress);
+        alert("✅ Thêm địa chỉ thành công!");
       }
 
-      // Reset form sau khi thêm
+      // Reset form
       setRecipientName("");
       setPhone("");
       setDetailAddress("");
       setLocation("");
       setIsDefault(false);
-    } catch (err) {
-      console.error(err);
-      alert("Lỗi lưu địa chỉ");
+    } catch (err: any) {
+      console.error("💥 Lỗi lưu địa chỉ:", err.response?.data || err.message);
+      alert(
+        "Lỗi lưu địa chỉ: " +
+        (err.response?.data?.error || err.message || "Không xác định")
+      );
     } finally {
       setLoading(false);
     }
@@ -96,7 +133,9 @@ export default function AddressForm({
       className="mt-4 space-y-3 bg-gray-50 p-4 rounded-xl border"
     >
       <div>
-        <label className="block text-sm text-gray-700 mb-1">Họ tên người nhận</label>
+        <label className="block text-sm text-gray-700 mb-1">
+          Họ tên người nhận
+        </label>
         <input
           type="text"
           value={recipientName}
@@ -107,7 +146,9 @@ export default function AddressForm({
       </div>
 
       <div>
-        <label className="block text-sm text-gray-700 mb-1">Số điện thoại</label>
+        <label className="block text-sm text-gray-700 mb-1">
+          Số điện thoại
+        </label>
         <input
           type="tel"
           value={phone}
@@ -118,7 +159,9 @@ export default function AddressForm({
       </div>
 
       <div>
-        <label className="block text-sm text-gray-700 mb-1">Địa chỉ chi tiết</label>
+        <label className="block text-sm text-gray-700 mb-1">
+          Địa chỉ chi tiết
+        </label>
         <input
           type="text"
           value={detailAddress}
@@ -130,11 +173,13 @@ export default function AddressForm({
       </div>
 
       <div>
-        <label className="block text-sm text-gray-700 mb-1">Tỉnh / Quận / Xã</label>
+        <label className="block text-sm text-gray-700 mb-1">
+          Tỉnh / Quận / Xã
+        </label>
         <VietnamAddressSelector onChange={setLocation} />
       </div>
 
-      {/* ✅ Checkbox chọn địa chỉ mặc định */}
+      {/* ✅ Checkbox địa chỉ mặc định */}
       <div className="flex items-center gap-2 mt-2">
         <input
           type="checkbox"
@@ -148,13 +193,34 @@ export default function AddressForm({
         </label>
       </div>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50 mt-3"
-      >
-        {editingAddress ? "Cập nhật địa chỉ" : "Thêm địa chỉ"}
-      </button>
+      {/* 🛎️ Nút Xóa / Lưu */}
+      <div className="flex items-center justify-between gap-3 mt-4">
+        
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50 flex-1"
+        >
+          {loading
+            ? "Đang lưu..."
+            : editingAddress
+              ? "Cập nhật địa chỉ"
+              : "Thêm địa chỉ"}
+        </button>
+
+        {editingAddress && (
+          <button
+            type="button"
+            onClick={deleteAddress}
+            disabled={loading}
+            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex-1"
+          >
+            🗑️ Xóa địa chỉ
+          </button>
+        )}
+      </div>
+
     </form>
   );
 }

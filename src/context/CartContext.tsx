@@ -35,6 +35,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+
+  useEffect(() => {
+    console.log("👤 User hiện tại:", user);
+  }, [user]);
   // ----------------------------
   // Load user + cart khi mount
   // ----------------------------
@@ -177,7 +181,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const newCart = cart.map((i) =>
           i.product_id === productId ? { ...i, quantity } : i
         );
-         console.log("🧩 Updated local cart:", newCart);
+        console.log("🧩 Updated local cart:", newCart);
         saveCartToCookie(newCart);
       }
     } catch (error: any) {

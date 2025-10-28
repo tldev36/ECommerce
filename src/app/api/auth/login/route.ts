@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       SECRET,
-      { expiresIn: "10m" } // ⬅ 10 phút
+      { expiresIn: "60m" } // ⬅ 60 phút
     );
 
     const cookieStore = await cookies();
