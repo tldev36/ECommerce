@@ -6,8 +6,9 @@ import { cookies } from "next/headers";
 
 const SECRET = process.env.JWT_SECRET || "supersecret";
 
-function getUserIdFromCookie(): number | null {
-  const cookieStore: any = cookies();
+// ⚙️ Hàm async để đọc cookie đúng cách
+async function getUserIdFromCookie(): Promise<number | null> {
+  const cookieStore = await cookies(); // ✅ cần await
   const token = cookieStore.get("token")?.value;
 
   if (!token) return null;
@@ -22,7 +23,7 @@ function getUserIdFromCookie(): number | null {
 
 export async function DELETE() {
   try {
-    const userId = getUserIdFromCookie();
+    const userId = await getUserIdFromCookie(); // ✅ nhớ await
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
@@ -31,7 +32,10 @@ export async function DELETE() {
       where: { user_id: userId },
     });
 
-    return NextResponse.json({ message: "Đã xoá toàn bộ giỏ hàng" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Đã xoá toàn bộ giỏ hàng" },
+      { status: 200 }
+    );
   } catch (err) {
     console.error("❌ DELETE /api/cart/delete error:", err);
     return NextResponse.json({ message: "Server error" }, { status: 500 });

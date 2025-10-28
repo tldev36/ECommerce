@@ -23,4 +23,4 @@ export interface Order {
   order_items?: OrderItem[];
 }
 
-export type PaymentMethod = "cod" | "bank" | "momo";
+export type PaymentMethod = "cod" | "zalopay" | "momo";

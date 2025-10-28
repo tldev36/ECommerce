@@ -1,16 +1,31 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // import prisma instance
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
-    const { user_id, shipping_address_id, items, total_amount, payment_method, coupon_id } = await req.json();
+    const body = await req.json();
+    const {
+      user_id,
+      shipping_address_id,
+      items,
+      total_amount,
+      payment_method,
+      coupon_id,
+    } = body;
 
-    if (!items?.length) {
-      return NextResponse.json({ error: "Giỏ hàng trống" }, { status: 400 });
+    // 🧩 Kiểm tra dữ liệu đầu vào
+    if (!items || items.length === 0) {
+      return NextResponse.json(
+        { error: "Giỏ hàng trống, không thể tạo đơn hàng." },
+        { status: 400 }
+      );
     }
 
-    // 🧮 Tạo mã đơn hàng (VD: ORD20251028XYZ)
-    const orderCode = `ORD${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    // 🧮 Tạo mã đơn hàng
+    const orderCode = `ORD${Date.now()}${Math.random()
+      .toString(36)
+      .substring(2, 6)
+      .toUpperCase()}`;
 
     // 🧾 Tạo đơn hàng
     const order = await prisma.orders.create({
@@ -21,15 +36,19 @@ export async function POST(req: Request) {
         coupon_id: coupon_id || null,
         total_amount,
         payment_method,
-        status: payment_method === "cod" ? "pending" : "waiting_payment", // COD thì pending
+        status: payment_method === "cod" ? "pending" : "waiting_payment",
         order_items: {
           create: items.map((item: any) => ({
-            product_id: item.id,
+            product_id: item.product_id, // cột product_id trong bảng order_items
             quantity: item.quantity,
             price: item.price,
             discount_percent: item.discount_percent || 0,
-            final_price: item.price * (1 - (item.discount_percent || 0) / 100),
-            subtotal: item.quantity * item.price * (1 - (item.discount_percent || 0) / 100),
+            final_price:
+              item.price * (1 - (item.discount_percent || 0) / 100),
+            subtotal:
+              item.quantity *
+              item.price *
+              (1 - (item.discount_percent || 0) / 100),
           })),
         },
       },
@@ -38,9 +57,16 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, order });
+    return NextResponse.json({
+      success: true,
+      message: "Tạo đơn hàng thành công",
+      order,
+    });
   } catch (error) {
-    console.error("❌ Lỗi khi tạo đơn hàng:", error);
-    return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
+    console.error("❌ Lỗi khi tạo hóa đơn:", error);
+    return NextResponse.json(
+      { error: "Lỗi server, không thể tạo đơn hàng." },
+      { status: 500 }
+    );
   }
 }

@@ -10,6 +10,7 @@ import CouponInput from "@/components/checkout/CouponInput";
 import InvoiceModal from "@/components/checkout/InvoiceModal";
 import PaymentMethodSelector from "@/components/checkout/PaymentMethodSelector";
 import ShippingFeeCalculator from "@/components/checkout/ShippingFeeCalculator";
+import { ZaloPayCreateOrderResponse } from "@/types/ZaloPayCreateOrderResponse";
 import type { PaymentMethod } from "@/types/order";
 
 export default function CheckoutPage() {
@@ -27,8 +28,10 @@ export default function CheckoutPage() {
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [shippingFee, setShippingFee] = useState(0);
 
-
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
+
+  const [paymentQR, setPaymentQR] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
 
 
   const [showInvoice, setShowInvoice] = useState(false);
@@ -62,6 +65,7 @@ export default function CheckoutPage() {
         console.error("Lỗi fetch địa chỉ:", err);
       }
     };
+    console.log("🛒 Danh sách giỏ hàng hiện tại:", cart);
     fetchAddresses();
   }, []);
 
@@ -72,8 +76,6 @@ export default function CheckoutPage() {
       setSelectedAddress(defaultAddr?.id ?? addresses[0].id ?? null);
     }
   }, [addresses, selectedAddress]);
-
-  //
 
   const handleDeleteAddress = (id: number) => {
     setAddresses(prev => prev.filter(addr => addr.id !== id));
@@ -136,13 +138,19 @@ export default function CheckoutPage() {
     }
   };
 
+  // dữ liệu truyền cho modal hoá đơn
+  // const orderDataFromTO = {
+  //   user_id: user?.id,
+  //   shipping_address_id: selectedAddress,
+  //   items: cart,
+  //   total_amount: total + shippingFee,
+  //   payment_method: paymentMethod,
+  // };
+
   // 🛍️ Xác nhận đặt hàng
   const handlePlaceOrder = async () => {
-    // 🧩 Kiểm tra đăng nhập trước
     if (!isLoggedIn || !user) {
       alert("⚠️ Bạn cần đăng nhập trước khi đặt hàng!");
-      // 👉 Nếu muốn chuyển về trang đăng nhập:
-      // router.push("/login");
       return;
     }
 
@@ -151,34 +159,58 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (paymentMethod !== "cod") {
-      alert("🚧 Tính năng thanh toán này đang được bảo trì, vui lòng chọn COD!");
-      return;
+    const orderInfo = {
+      user_id: user.id,
+      shipping_address_id: selectedAddress,
+      items: cart,
+      total_amount: total + shippingFee,
+      payment_method: paymentMethod,
+    };
+
+    // Nếu chọn ZaloPay
+    if (paymentMethod === "zalopay") {
+      try {
+        console.log("💰 Gửi orderData sang ZaloPay:", orderInfo);
+        const res = await axios.post<ZaloPayCreateOrderResponse>(
+          "/api/zalopay/create",
+          orderInfo,
+          { headers: { "Content-Type": "application/json" } }
+        );
+
+        const data = res.data;
+        console.log("💳 ZaloPay response:", data);
+
+        if (data.return_code === 1 && data.order_url) {
+          // 🔹 Chuyển hướng sang ZaloPay để thanh toán
+          window.location.href = data.order_url;
+        } else {
+          alert(data.return_message || "❌ Không thể tạo QR thanh toán ZaloPay");
+        }
+      } catch (error) {
+        console.error("❌ Lỗi tạo đơn ZaloPay:", error);
+        alert("⚠️ Đã xảy ra lỗi khi tạo đơn thanh toán ZaloPay");
+      }
+      return; // Không tiếp tục đặt COD
     }
 
+    // Nếu là COD hoặc các phương thức khác
     try {
-      const res = await axios.post("/api/orders", {
-        user_id: user.id,
-        shipping_address_id: selectedAddress,
-        items: cart,
-        total_amount: total + shippingFee,
-        payment_method: paymentMethod,
-      });
-
+      const res = await axios.post("/api/orders", orderInfo);
       const { success, order } = res.data as { success: boolean; order: any };
 
       if (success) {
         alert(`🎉 Đặt hàng thành công! Mã đơn: ${order.order_code}`);
-        clearCart(); // 🧹 Dọn giỏ hàng
-        // router.push(`/orders/${order.id}`); // 👉 hoặc chuyển hướng nếu muốn
+        clearCart();
       } else {
         alert("❌ Lỗi khi tạo đơn hàng!");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
       alert("⚠️ Lỗi khi kết nối đến server!");
     }
   };
+
+
 
   // 🧮 Tính tổng cân nặng (gram)
   const totalWeight = useMemo(() => {
@@ -206,7 +238,17 @@ export default function CheckoutPage() {
     }, 0);
   }, [cart]);
 
-
+  // useEffect(() => {
+  //   if (user && selectedAddress && cart.length > 0) {
+  //     setOrderData({
+  //       user_id: user.id,
+  //       shipping_address_id: selectedAddress,
+  //       items: cart,
+  //       total_amount: total + shippingFee,
+  //       payment_method: paymentMethod,
+  //     });
+  //   }
+  // }, [user, selectedAddress, cart, total, shippingFee, paymentMethod]);
 
   return (
     <div className="mt-20 max-w-5xl mx-auto px-4 py-10">
@@ -364,9 +406,9 @@ export default function CheckoutPage() {
           <PaymentMethodSelector
             selectedMethod={paymentMethod}
             onChange={setPaymentMethod}
+            totalAmount={finalTotal}
+            orderData={orderData} // ✅ thêm dòng này
           />
-
-
 
           <button
             onClick={handlePlaceOrder}
