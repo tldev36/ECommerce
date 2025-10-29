@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
     // 🔹 embed_data và item phải là JSON string
     const embed_data = JSON.stringify({
-      redirecturl: "http://localhost:3000/payment-callback",
+      redirecturl: "http://localhost:3000/payment-callback/zalopay",
       preferred_payment_method: ["zalopay_wallet"], // hiển thị QR Zalopay
     });
     const item_str = JSON.stringify(items);

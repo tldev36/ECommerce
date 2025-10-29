@@ -12,6 +12,7 @@ export const MOMO_CONFIG = {
   PARTNER_CODE: process.env.MOMO_PARTNER_CODE!,
   ACCESS_KEY: process.env.MOMO_ACCESS_KEY!,
   SECRET_KEY: process.env.MOMO_SECRET_KEY!,
-  ENDPOINT: process.env.MOMO_ENDPOINT!,
+  ENDPOINT: process.env.MOMO_ENDPOINT || "https://test-payment.momo.vn",
+  CREATE_PATH: process.env.MOMO_CREATE_PATH || "/v2/gateway/api/create",
   BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000",
 };

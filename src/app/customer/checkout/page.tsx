@@ -11,6 +11,7 @@ import InvoiceModal from "@/components/checkout/InvoiceModal";
 import PaymentMethodSelector from "@/components/checkout/PaymentMethodSelector";
 import ShippingFeeCalculator from "@/components/checkout/ShippingFeeCalculator";
 import { ZaloPayCreateOrderResponse } from "@/types/ZaloPayCreateOrderResponse";
+import { MoMoCreatePaymentResponse } from "@/types/MoMoCreatePaymentResponse";
 import type { PaymentMethod } from "@/types/order";
 
 export default function CheckoutPage() {
@@ -50,6 +51,23 @@ export default function CheckoutPage() {
     discount,
     shippingFee,
   ]);
+
+  // 🧩 Log kiểm tra user & isLoggedIn
+  useEffect(() => {
+    console.log("=== CHECKOUT DEBUG ===");
+    console.log("isLoggedIn:", isLoggedIn);
+    console.log("user:", user);
+    console.log("cart:", cart);
+    console.log(
+      "token cookie (client):",
+      document.cookie.includes("token") ? "✅ Có token" : "❌ Không có token"
+    );
+
+    fetch("/api/auth/me", { credentials: "include" })
+      .then(r => r.json())
+      .then(console.log);
+  }, [isLoggedIn, user, cart]);
+
 
   // 📦 Lấy danh sách địa chỉ
   useEffect(() => {
@@ -166,6 +184,49 @@ export default function CheckoutPage() {
       total_amount: total + shippingFee,
       payment_method: paymentMethod,
     };
+
+    // Nếu chọn MoMo
+    if (paymentMethod === "momo") {
+      try {
+        const momoData = {
+          amount: finalTotal,
+          orderId: `ORDER-${Date.now()}`,
+          orderInfo: `Thanh toán đơn hàng của ${user.full_name || user.email}`,
+          items: cart.map((item) => ({
+            id: item.product_id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          userInfo: {
+            id: user.id,
+            name: user.full_name,
+            email: user.email,
+            phone: user.phone,
+          },
+          deliveryInfo: {
+            address: selectedAddr?.detail_address,
+            ward: selectedAddr?.province_district_ward,
+          },
+        };
+
+        const res = await axios.post<MoMoCreatePaymentResponse>("/api/momo/create", momoData, {
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (res.data.payUrl) {
+          window.location.href = res.data.payUrl;
+        } else {
+          alert("❌ MoMo không trả về payUrl, vui lòng kiểm tra log.");
+        }
+      } catch (err) {
+        console.error("❌ Lỗi tạo thanh toán MoMo:", err);
+        alert("⚠️ Không thể tạo thanh toán MoMo, xem log console để biết chi tiết.");
+      }
+      return;
+    }
+
+
 
     // Nếu chọn ZaloPay
     if (paymentMethod === "zalopay") {
@@ -406,8 +467,6 @@ export default function CheckoutPage() {
           <PaymentMethodSelector
             selectedMethod={paymentMethod}
             onChange={setPaymentMethod}
-            totalAmount={finalTotal}
-            orderData={orderData} // ✅ thêm dòng này
           />
 
           <button
