@@ -64,6 +64,12 @@ export default function LoginPage() {
       const loginData = await res.json();
       const role = loginData?.user?.role;
 
+      // 🔹 Nếu là admin → chuyển hướng ngay, không merge giỏ hàng
+      if (role === "admin") {
+        router.push("/admin/dashboard");
+        return;
+      }
+
       // Merge giỏ hàng...
       const tempCart = Cookies.get("cart_temp") ? JSON.parse(Cookies.get("cart_temp")!) : [];
       if (tempCart.length > 0) {
@@ -76,15 +82,16 @@ export default function LoginPage() {
         Cookies.remove("cart_temp");
       }
 
+      // 🔹 Lấy lại giỏ hàng sau khi merge
       const cartRes = await fetch("/api/cart", { credentials: "include" });
       if (cartRes.ok) {
         const cartData = await cartRes.json();
         if (cartData?.cart) setCartFromServer(cartData.cart);
       }
 
-      // Redirect theo role
-      if (role === "admin") router.push("/admin/dashboard");
-      else router.push(redirect || "/customer/home");
+      // 🔹 Redirect user thường
+      router.push(redirect || "/customer/home");
+      
     } catch (err) {
       console.error(err);
       setError("root", { message: "Lỗi server. Vui lòng thử lại!" });

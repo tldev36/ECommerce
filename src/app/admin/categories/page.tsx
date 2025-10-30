@@ -13,6 +13,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Category } from "@/types/category";
 import Modal from "@/components/common/Modal";
+import CategoryForm from "@/components/admin/CategoryForm";
 
 export default function CategoryPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -29,7 +30,7 @@ export default function CategoryPage() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await axios.get<Category[]>("/api/categories");
+        const res = await axios.get<Category[]>("/api/admin/categories");
         setCategories(res.data);
       } catch (error) {
         console.error("Lỗi fetch categories:", error);
@@ -59,39 +60,57 @@ export default function CategoryPage() {
   };
 
   // ✅ Lưu form
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
 
-    try {
-      if (editing) {
-        // Cập nhật
-        const updated = { ...editing, ...formData };
-        setCategories((prev) =>
-          prev.map((c) => (c.id === editing.id ? updated : c))
-        );
-        // Gọi API nếu cần: await axios.put(`/api/categories/${editing.id}`, updated);
-      } else {
-        // Thêm mới
-        const newCategory = {
-          id: Math.max(0, ...categories.map((c) => c.id)) + 1,
-          ...formData,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        // setCategories((prev) => [...prev, newCategory]);
-        // Gọi API nếu cần: await axios.post("/api/categories", newCategory);
-      }
+  //   try {
+  //     if (editing) {
+  //       // Cập nhật
+  //       const updated = { ...editing, ...formData };
+  //       setCategories((prev) =>
+  //         prev.map((c) => (c.id === editing.id ? updated : c))
+  //       );
+  //       // Gọi API nếu cần: await axios.put(`/api/categories/${editing.id}`, updated);
+  //     } else {
+  //       // Thêm mới
+  //       const newCategory = {
+  //         id: Math.max(0, ...categories.map((c) => c.id)) + 1,
+  //         ...formData,
+  //         created_at: new Date().toISOString(),
+  //         updated_at: new Date().toISOString(),
+  //       };
+  //       // setCategories((prev) => [...prev, newCategory]);
+  //       // Gọi API nếu cần: await axios.post("/api/categories", newCategory);
+  //     }
 
-      setOpenModal(false);
-    } catch (error) {
-      console.error("Lỗi lưu loại sản phẩm:", error);
-    }
-  };
+  //     setOpenModal(false);
+  //   } catch (error) {
+  //     console.error("Lỗi lưu loại sản phẩm:", error);
+  //   }
+  // };
 
   // ✅ Xóa loại
-  const handleDelete = (id: number) => {
-    if (confirm("Bạn có chắc muốn xóa loại sản phẩm này không?")) {
-      setCategories((prev) => prev.filter((c) => c.id !== id));
+  const handleDelete = async (id: number) => {
+    if (!confirm("Bạn có chắc muốn xóa loại sản phẩm này không?")) return;
+
+    try {
+      const res = await axios.delete(`/api/admin/categories/${id}`);
+
+      if (res.status === 200) {
+        // Xóa trong state để cập nhật UI
+        setCategories((prev) => prev.filter((c) => c.id !== id));
+        alert("Đã xóa loại sản phẩm thành công!");
+      }
+    } catch (error: any) {
+      // ✅ Không cần xem đây là bug — chỉ hiển thị message lỗi
+      const message =
+        error.response?.data?.error ||
+        error.message ||
+        "Không thể xóa loại sản phẩm!";
+      alert(message);
+
+      // Nếu muốn ẩn cảnh báo đỏ trong console:
+      console.warn("⚠️ Thông báo từ server:", message);
     }
   };
 
@@ -213,61 +232,21 @@ export default function CategoryPage() {
         onClose={() => setOpenModal(false)}
         title={editing ? "Cập nhật loại sản phẩm" : "Thêm loại sản phẩm"}
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block font-medium mb-1">Tên loại sản phẩm</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Nhập tên loại..."
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block font-medium mb-1">Hình ảnh (URL)</label>
-            <input
-              type="text"
-              value={formData.image}
-              onChange={(e) =>
-                setFormData({ ...formData, image: e.target.value })
+        <CategoryForm
+          editing={editing}
+          onCancel={() => setOpenModal(false)}
+          onSuccess={(newCat) => {
+            setCategories((prev) => {
+              if (editing) {
+                return prev.map((c) => (c.id === newCat.id ? newCat : c));
               }
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="vd: category.jpg"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={formData.status}
-              onChange={(e) =>
-                setFormData({ ...formData, status: e.target.checked })
-              }
-              className="w-4 h-4"
-            />
-            <label>Hoạt động</label>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <button
-              type="button"
-              onClick={() => setOpenModal(false)}
-              className="px-4 py-2 border rounded-lg hover:bg-gray-100"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              {editing ? "Cập nhật" : "Thêm mới"}
-            </button>
-          </div>
-        </form>
+              return [newCat, ...prev];
+            });
+            setOpenModal(false);
+          }}
+        />
       </Modal>
+
     </div>
   );
 }

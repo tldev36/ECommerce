@@ -12,41 +12,54 @@ interface ProductFormProps {
 }
 
 export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormProps) {
-    const [form, setForm] = useState<Product>(
-        editing || {
-            id: 0,
-            name: "",
-            slug: "",
-            price: 0,
-            cost_price: 0,
-            unit: "",
-            image: "",
-            short: "",
-            category_id: null,
-            featured: false,
-            discount: 0,
-            is_new: false,
-            is_best_seller: false,
-            created_at: new Date(),
-            updated_at: new Date(),
-            categories: null,
-        }
-    );
+    const [form, setForm] = useState<Omit<Product, "id" | "created_at" | "updated_at">>({
+        name: "",
+        slug: "",
+        price: 0,
+        cost_price: 0,
+        unit: "",
+        image: "",
+        short: "",
+        category_id: null,
+        featured: false,
+        discount: 0,
+        is_new: false,
+        is_best_seller: false,
+        categories: null,
+    });
 
     const [categories, setCategories] = useState<Category[]>([]);
     const [preview, setPreview] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
 
+    // 🔹 Lấy danh sách categories
     useEffect(() => {
         axios.get<Category[]>("/api/categories").then((res) => setCategories(res.data));
     }, []);
 
+    // 🔹 Khi edit sản phẩm
     useEffect(() => {
         if (editing) {
-            setForm(editing);
+            setForm({
+                name: editing.name,
+                slug: editing.slug,
+                price: editing.price,
+                cost_price: editing.cost_price,
+                unit: editing.unit,
+                image: editing.image,
+                short: editing.short,
+                category_id: editing.category_id,
+                featured: editing.featured,
+                discount: editing.discount,
+                is_new: editing.is_new,
+                is_best_seller: editing.is_best_seller,
+                categories: editing.categories,
+            });
             if (editing.image) setPreview(`/images/products/${editing.image}`);
         }
     }, [editing]);
 
+    // 🔹 Tạo slug tự động
     const generateSlug = (text: string) =>
         text
             .toLowerCase()
@@ -57,6 +70,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
             .replace(/\-\-+/g, "-")
             .replace(/^-+|-+$/g, "");
 
+    // 🔹 Xử lý thay đổi form
     const handleChange = (
         e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
     ) => {
@@ -79,28 +93,59 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
         }));
     };
 
-    const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    // 🔹 Xử lý chọn ảnh
+    const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        setForm((prev) => ({ ...prev, image: file.name }));
-        const reader = new FileReader();
-        reader.onload = () => setPreview(reader.result as string);
-        reader.readAsDataURL(file);
+        setPreview(URL.createObjectURL(file)); // hiển thị ảnh tạm
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            // 🟢 Gọi API upload
+            const res = await axios.post("/api/upload?type=products", formData);
+            const { fileName } = res.data as { fileName: string };
+
+            // Lưu tên file đã upload
+            setForm((prev) => ({ ...prev, image: fileName }));
+        } catch (error) {
+            console.error("Lỗi upload ảnh:", error);
+            alert("❌ Không thể tải ảnh lên!");
+        }
     };
 
-    const handleSubmit = (e: FormEvent) => {
+
+    // 🔹 Submit Form
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        if (!form.name || !form.price) return alert("⚠️ Nhập đầy đủ tên và giá!");
-        const now = new Date();
-        editing ? onUpdate?.({ ...form, updated_at: now }) : onAdd?.({ ...form, id: Date.now(), created_at: now, updated_at: now });
+        if (!form.name || !form.price) {
+            alert("⚠️ Nhập đầy đủ tên và giá!");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            let res;
+            if (editing) {
+                // 🟢 Cập nhật sản phẩm
+                res = await axios.put<Product>(`/api/admin/products/${editing.id}`, form);
+                onUpdate?.(res.data);
+            } else {
+                // 🟢 Thêm mới sản phẩm
+                res = await axios.post<Product>(`/api/admin/products`, form);
+                onAdd?.(res.data);
+            }
+        } catch (err) {
+            console.error("Lỗi khi lưu sản phẩm:", err);
+            alert("❌ Không thể lưu sản phẩm!");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
-        <form
-            onSubmit={handleSubmit}
-            className="space-y-6 bg-white rounded-2xl p-6 shadow-md"
-        >
+        <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-2xl p-6 shadow-md">
             <h2 className="text-2xl font-semibold text-gray-800 border-b pb-3">
                 {editing ? "✏️ Cập nhật sản phẩm" : "➕ Thêm mới sản phẩm"}
             </h2>
@@ -112,21 +157,9 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                     name="name"
                     value={form.name}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"
                     placeholder="Nhập tên sản phẩm..."
                     required
-                />
-            </div>
-
-            {/* Slug */}
-            <div>
-                <label className="block font-medium mb-1 text-gray-700">Slug</label>
-                <input
-                    name="slug"
-                    value={form.slug}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"
-                    placeholder="vd: sua-tuoi-nguyen-chat"
                 />
             </div>
 
@@ -174,54 +207,12 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                                 className="mx-auto w-40 h-40 object-cover rounded-lg shadow-md"
                             />
                         ) : (
-                            <div className="flex flex-col items-center text-gray-500">
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-12 w-12 mb-2 text-gray-400"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M7 16V4a1 1 0 011-1h8a1 1 0 011 1v12m-5 4h.01M12 16v4"
-                                    />
-                                </svg>
-                                <p className="text-sm">
-                                    <span className="text-green-600 font-medium">Chọn ảnh</span> hoặc kéo vào đây
-                                </p>
-                            </div>
+                            <p className="text-gray-500 text-sm">
+                                <span className="text-green-600 font-medium">Chọn ảnh</span> hoặc kéo vào đây
+                            </p>
                         )}
                     </label>
                 </div>
-            </div>
-
-
-            {/* Đơn vị */}
-            <div>
-                <label className="block font-medium mb-1 text-gray-700">Đơn vị</label>
-                <input
-                    name="unit"
-                    value={form.unit}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"
-                    placeholder="Nhập đơn vị gram..."
-                />
-            </div>
-
-            {/* Mô tả ngắn */}
-            <div>
-                <label className="block font-medium mb-1 text-gray-700">Mô tả ngắn</label>
-                <textarea
-                    name="short"
-                    value={form.short || ""}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"
-                    rows={3}
-                    placeholder="Mô tả ngắn về sản phẩm..."
-                />
             </div>
 
             {/* Danh mục */}
@@ -242,7 +233,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                 </select>
             </div>
 
-            {/* Các cờ */}
+            {/* Cờ */}
             <div className="flex flex-wrap gap-4">
                 {[
                     { name: "is_new", label: "Mới" },
@@ -255,33 +246,20 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                             name={opt.name}
                             checked={(form as any)[opt.name] || false}
                             onChange={handleChange}
-                            className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                            className="w-4 h-4 text-green-600 border-gray-300 rounded"
                         />
                         {opt.label}
                     </label>
                 ))}
             </div>
 
-            {/* Giảm giá */}
-            <div>
-                <label className="block font-medium mb-1 text-gray-700">Giảm giá (%)</label>
-                <input
-                    name="discount"
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={form.discount ?? 0}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"
-                />
-            </div>
-
             {/* Nút gửi */}
             <button
                 type="submit"
+                disabled={loading}
                 className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 active:scale-[0.98] transition font-medium"
             >
-                {editing ? "💾 Lưu thay đổi" : "🚀 Thêm sản phẩm"}
+                {loading ? "⏳ Đang lưu..." : editing ? "💾 Lưu thay đổi" : "🚀 Thêm sản phẩm"}
             </button>
         </form>
     );

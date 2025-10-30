@@ -5,17 +5,19 @@ import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBoxOpen,
-  faCircleXmark,
   faEdit,
   faTrash,
   faPlus,
-  faFire,
-  faStar,
 } from "@fortawesome/free-solid-svg-icons";
 
 import Modal from "@/components/common/Modal";
-import ProductForm from "@/components/admin/ProductForm";
-import { Product, ProductApi } from "@/types/product"; // ✅ Dùng 2 kiểu
+import ProductForm from "@/components/admin/products/ProductForm";
+import { Product, ProductApi } from "@/types/product";
+import ProductStatusIcons from "@/components/admin/products/ProductStatusIcons";
+import StatusLegend from "@/components/admin/products/StatusLegend";
+import ProductDetailModal from "@/components/admin/products/ProductDetailModal";
+
+
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -23,11 +25,16 @@ export default function ProductsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
 
+  // Detail modal state
+  const [showDetail, setShowDetail] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+
   // 🟢 Load danh sách sản phẩm
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await axios.get<ProductApi[]>("/api/products");
+        const res = await axios.get<ProductApi[]>("/api/admin/products");
         const formatted = res.data.map((p) => ({
           ...p,
           created_at: p.created_at ? new Date(p.created_at) : undefined,
@@ -44,15 +51,19 @@ export default function ProductsPage() {
   }, []);
 
   // 🗑️ Xóa sản phẩm
-  const handleDelete = (id: number) => {
-    if (confirm("Bạn có chắc chắn muốn xóa sản phẩm này?")) {
-      console.log("Delete product", id);
+  const handleDelete = async (id: number) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa sản phẩm này?")) return;
+    try {
+      await axios.delete(`/api/admin/products/${id}`);
       setProducts((prev) => prev.filter((p) => p.id !== id));
-      // TODO: Gọi API DELETE
+      alert("Đã xóa sản phẩm thành công!");
+    } catch (error) {
+      console.error("Lỗi khi xóa sản phẩm:", error);
+      alert("Không thể xóa sản phẩm!");
     }
   };
 
-  // ➕ Thêm sản phẩm mới
+  // ➕ Thêm sản phẩm
   const handleAdd = (product: Omit<Product, "id" | "created_at" | "updated_at">) => {
     const newProduct: Product = {
       ...product,
@@ -74,12 +85,10 @@ export default function ProductsPage() {
   return (
     <div className="max-w-7xl mx-auto mt-10 bg-white rounded-2xl shadow p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <FontAwesomeIcon icon={faBoxOpen} className="text-blue-600 text-2xl" />
-          <h1 className="text-2xl font-bold text-gray-800">
-            Quản lý sản phẩm
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-800">Quản lý sản phẩm</h1>
         </div>
 
         <button
@@ -93,6 +102,9 @@ export default function ProductsPage() {
           <span>Thêm sản phẩm</span>
         </button>
       </div>
+
+      {/* 🟡 Chú thích trạng thái */}
+      <StatusLegend />
 
       {/* Bảng sản phẩm */}
       <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
@@ -108,22 +120,17 @@ export default function ProductsPage() {
               <tr className="bg-gray-100 text-gray-700">
                 <th className="p-3 border-b text-center w-16">#</th>
                 <th className="p-3 border-b text-center">Ảnh</th>
-                <th className="p-3 border-b">Tên sản phẩm</th>
-                <th className="p-3 border-b">Danh mục</th>
+                <th className="p-3 border-b text-center">Tên sản phẩm</th>
+                <th className="p-3 border-b text-center">Danh mục</th>
                 <th className="p-3 border-b text-right">Giá bán</th>
-                <th className="p-3 border-b text-right">Giá vốn</th>
-                <th className="p-3 border-b text-center">Đơn vị</th>
                 <th className="p-3 border-b text-center">Trạng thái</th>
-                <th className="p-3 border-b text-center">Ngày tạo</th>
+                <th className="p-3 border-b text-center">Tồn kho</th>
                 <th className="p-3 border-b text-center w-24">Hành động</th>
               </tr>
             </thead>
             <tbody>
               {products.map((p, index) => (
-                <tr
-                  key={p.id}
-                  className="hover:bg-gray-50 transition duration-150"
-                >
+                <tr key={p.id} className="hover:bg-gray-50 transition duration-150">
                   <td className="p-3 border-b text-center">{index + 1}</td>
                   <td className="p-3 border-b text-center">
                     {p.image ? (
@@ -138,52 +145,33 @@ export default function ProductsPage() {
                       </div>
                     )}
                   </td>
-
-                  <td className="p-3 border-b font-medium text-gray-800">
-                    {p.name}
-                  </td>
-
-                  <td className="p-3 border-b text-gray-600">
+                  <td className="p-3 border-b font-medium text-gray-800 text-center">{p.name}</td>
+                  <td className="p-3 border-b text-gray-600 text-center">
                     {p.categories?.name || "—"}
                   </td>
-
                   <td className="p-3 border-b text-right text-green-700 font-medium">
                     {p.price.toLocaleString("vi-VN")} đ
                   </td>
-
-                  <td className="p-3 border-b text-right text-gray-500">
-                    {p.cost_price.toLocaleString("vi-VN")} đ
-                  </td>
-
-                  <td className="p-3 border-b text-center">{p.unit}</td>
-
                   <td className="p-3 border-b text-center">
-                    {p.is_best_seller ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded-full font-medium">
-                        <FontAwesomeIcon icon={faFire} />
-                        Bán chạy
-                      </span>
-                    ) : p.is_new ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">
-                        <FontAwesomeIcon icon={faStar} />
-                        Mới
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-                        <FontAwesomeIcon icon={faCircleXmark} />
-                        Bình thường
-                      </span>
-                    )}
+                    <ProductStatusIcons product={p} />
                   </td>
-
                   <td className="p-3 border-b text-center text-gray-500">
-                    {p.created_at
-                      ? p.created_at.toLocaleDateString("vi-VN")
-                      : "-"}
+                    {p.stock_quantity}
                   </td>
-
                   <td className="p-3 border-b text-center">
                     <div className="flex items-center justify-center gap-4">
+                      {/* 👁 Xem chi tiết */}
+                      <button
+                        title="Xem chi tiết"
+                        onClick={() => {
+                          setSelectedProduct(p);
+                          setShowDetail(true);
+                        }}
+                        className="text-blue-600 hover:text-blue-800 transition"
+                      >
+                        <FontAwesomeIcon icon={faBoxOpen} />
+                      </button>
+                      {/* ✏️ Sửa sản phẩm */}
                       <button
                         title="Sửa sản phẩm"
                         onClick={() => {
@@ -194,6 +182,7 @@ export default function ProductsPage() {
                       >
                         <FontAwesomeIcon icon={faEdit} />
                       </button>
+                      {/* 🗑️ Xóa sản phẩm */}
                       <button
                         title="Xóa sản phẩm"
                         onClick={() => handleDelete(p.id)}
@@ -210,6 +199,17 @@ export default function ProductsPage() {
         )}
       </div>
 
+      {selectedProduct && (
+        <ProductDetailModal
+          open={showDetail}
+          onClose={() => {
+            setShowDetail(false);
+            setSelectedProduct(null);
+          }}
+          product={selectedProduct}
+        />
+      )}
+
       {/* Modal thêm/sửa */}
       <Modal
         open={showModal}
@@ -220,11 +220,7 @@ export default function ProductsPage() {
         title={editing ? "✏️ Cập nhật sản phẩm" : "➕ Thêm sản phẩm"}
         width="max-w-2xl"
       >
-        <ProductForm
-          editing={editing}
-          onAdd={handleAdd}
-          onUpdate={handleUpdate}
-        />
+        <ProductForm editing={editing} onAdd={handleAdd} onUpdate={handleUpdate} />
       </Modal>
     </div>
   );

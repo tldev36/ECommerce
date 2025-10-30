@@ -16,6 +16,9 @@ export interface ProductApi {
   category_id?: number | null;
   featured?: boolean | null;
   discount?: number | null;
+  stock_quantity?: number;
+  min_stock_level?: number;
+  is_active?: boolean;
   is_new?: boolean;
   is_best_seller?: boolean;
   created_at?: string;   // <-- API trả về chuỗi
