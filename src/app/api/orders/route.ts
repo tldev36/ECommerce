@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ZALO_CONFIG } from "@/config";
 
 export async function POST(req: Request) {
   try {
@@ -56,6 +57,8 @@ export async function POST(req: Request) {
         order_items: true,
       },
     });
+
+    // thêm vào giao hàng nhanh
 
     return NextResponse.json({
       success: true,

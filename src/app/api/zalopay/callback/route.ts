@@ -1,75 +1,60 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { ZALO_CONFIG } from "@/config";
 
+/**
+ * 🧩 API: /api/zalopay/callback
+ * Nhận dữ liệu từ client sau khi người dùng được redirect về
+ */
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const { app_trans_id, status } = await req.json();
 
-    const { data: dataString, mac, type } = body;
-    if (!dataString || !mac) {
-      return NextResponse.json({ error: "Thiếu dữ liệu callback" }, { status: 400 });
+    if (!app_trans_id) {
+      return NextResponse.json({ success: false, message: "Thiếu app_trans_id" }, { status: 400 });
     }
 
-    // 🔹 Xác thực MAC
-    const expectedMac = crypto
-      .createHmac("sha256", ZALO_CONFIG.KEY2)
-      .update(dataString)
-      .digest("hex");
+    console.log("📦 ZaloPay Callback:", { app_trans_id, status });
 
-    if (mac !== expectedMac) {
-      console.error("❌ Callback MAC không hợp lệ");
-      return NextResponse.json({ error: "MAC không hợp lệ" }, { status: 400 });
+    // ✅ Nếu thanh toán thành công (status === "1")
+    if (status === "1") {
+      const updated = await prisma.orders.updateMany({
+        where: { order_code: app_trans_id },
+        data: {
+          status: "paid",
+          // payment_date: new Date(),
+        },
+      });
+
+      if (updated.count === 0) {
+        console.warn(`⚠️ Không tìm thấy đơn hàng ${app_trans_id}`);
+        return NextResponse.json({
+          success: false,
+          message: "Không tìm thấy đơn hàng để cập nhật",
+        });
+      }
+
+      console.log(`✅ Đơn hàng ${app_trans_id} → ĐÃ THANH TOÁN`);
+      return NextResponse.json({
+        success: true,
+        message: "Cập nhật đơn hàng thành công",
+      });
     }
 
-    // 🔹 Parse data
-    const data = JSON.parse(dataString);
-    const {
-      app_id,
-      app_trans_id,
-      app_user,
-      amount,
-      embed_data,
-      item,
-      zp_trans_id,
-      server_time,
-      channel,
-      merchant_user_id,
-      user_fee_amount,
-      discount_amount,
-    } = data;
-
-    console.log("📥 Callback data parsed:", data);
-
-    // 🔹 Tìm đơn hàng theo app_trans_id
-    const order = await prisma.orders.findFirst({
-      where: { order_code: { contains: app_trans_id } },
+    // ❌ Nếu thất bại
+    await prisma.orders.updateMany({
+      where: { order_code: app_trans_id },
+      data: { status: "cancelled" },
     });
 
-    if (!order) {
-      return NextResponse.json({ error: "Không tìm thấy đơn hàng" }, { status: 404 });
-    }
-
-    // 🔹 Cập nhật trạng thái đơn
-    let status = "failed";
-    if (type === 1 && amount === order.total_amount) {
-      // thanh toán thành công
-      status = "paid";
-    }
-
-    await prisma.orders.update({
-      where: { id: order.id },
-      data: { status },
+    return NextResponse.json({
+      success: false,
+      message: "Thanh toán thất bại hoặc bị hủy",
     });
-
-    console.log(`✅ Đơn hàng ${order.order_code} đã cập nhật trạng thái: ${status}`);
-
-    // 🔹 Trả response cho ZaloPay
-    return NextResponse.json({ return_code: 1, return_message: "Callback processed" });
-
-  } catch (err) {
-    console.error("❌ Lỗi callback ZaloPay:", err);
-    return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
+  } catch (error: any) {
+    console.error("❌ Lỗi callback:", error);
+    return NextResponse.json(
+      { success: false, message: "Lỗi xử lý callback", details: error.message },
+      { status: 500 }
+    );
   }
 }

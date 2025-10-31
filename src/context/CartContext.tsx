@@ -45,9 +45,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const fetchUserAndCart = async () => {
       try {
-        // Lấy thông tin user
+        // Lấy thông tin user từ server
         const userRes = await axios.get<MeResponse>("/api/auth/me", { withCredentials: true });
-        if (userRes.data?.user) {
+        if (userRes.data.user) {
           setUser(userRes.data.user);
           setIsLoggedIn(true);
         }

@@ -12,6 +12,7 @@ interface ProductFormProps {
 }
 
 export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormProps) {
+    // 🔹 Form dữ liệu
     const [form, setForm] = useState<Omit<Product, "id" | "created_at" | "updated_at">>({
         name: "",
         slug: "",
@@ -25,19 +26,18 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
         discount: 0,
         is_new: false,
         is_best_seller: false,
+        stock_quantity: 0,
+        min_stock_level: 0,
+        is_active: true,
         categories: null,
     });
 
     const [categories, setCategories] = useState<Category[]>([]);
     const [preview, setPreview] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-    // 🔹 Lấy danh sách categories
-    useEffect(() => {
-        axios.get<Category[]>("/api/categories").then((res) => setCategories(res.data));
-    }, []);
-
-    // 🔹 Khi edit sản phẩm
+    // 🔹 Nếu đang edit, nạp dữ liệu ban đầu vào form
     useEffect(() => {
         if (editing) {
             setForm({
@@ -53,11 +53,19 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                 discount: editing.discount,
                 is_new: editing.is_new,
                 is_best_seller: editing.is_best_seller,
+                stock_quantity: editing.stock_quantity ?? 0,
+                min_stock_level: editing.min_stock_level ?? 0,
+                is_active: editing.is_active ?? true,
                 categories: editing.categories,
             });
             if (editing.image) setPreview(`/images/products/${editing.image}`);
         }
     }, [editing]);
+
+    // 🔹 Lấy danh sách categories
+    useEffect(() => {
+        axios.get<Category[]>("/api/categories").then((res) => setCategories(res.data));
+    }, []);
 
     // 🔹 Tạo slug tự động
     const generateSlug = (text: string) =>
@@ -70,7 +78,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
             .replace(/\-\-+/g, "-")
             .replace(/^-+|-+$/g, "");
 
-    // 🔹 Xử lý thay đổi form
+    // 🔹 Xử lý thay đổi input
     const handleChange = (
         e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
     ) => {
@@ -93,52 +101,86 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
         }));
     };
 
-    // 🔹 Xử lý chọn ảnh
-    const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    // 🔹 Chọn file ảnh
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
-        setPreview(URL.createObjectURL(file)); // hiển thị ảnh tạm
-        try {
-            const formData = new FormData();
-            formData.append("file", file);
-
-            // 🟢 Gọi API upload
-            const res = await axios.post("/api/upload?type=products", formData);
-            const { fileName } = res.data as { fileName: string };
-
-            // Lưu tên file đã upload
-            setForm((prev) => ({ ...prev, image: fileName }));
-        } catch (error) {
-            console.error("Lỗi upload ảnh:", error);
-            alert("❌ Không thể tải ảnh lên!");
-        }
+        setPreview(URL.createObjectURL(file));
+        setSelectedFile(file);
     };
 
-
-    // 🔹 Submit Form
+    // 🔹 Submit form
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+
         if (!form.name || !form.price) {
-            alert("⚠️ Nhập đầy đủ tên và giá!");
+            alert("⚠️ Vui lòng nhập đầy đủ tên và giá sản phẩm!");
             return;
         }
 
         setLoading(true);
         try {
+            let uploadedFileName = form.image;
+            if (selectedFile) {
+                const uploadForm = new FormData();
+                uploadForm.append("file", selectedFile);
+                const uploadRes = await axios.post<{ fileName: string }>(
+                    "/api/upload?type=products",
+                    uploadForm,
+                    { headers: { "Content-Type": "multipart/form-data" } }
+                );
+                uploadedFileName = uploadRes.data.fileName;
+            } else if (editing?.image) {
+                uploadedFileName = editing.image; // giữ ảnh cũ
+            }
+
+            const {
+                name,
+                slug,
+                price,
+                cost_price,
+                unit,
+                short,
+                category_id,
+                featured,
+                discount,
+                is_new,
+                is_best_seller,
+                stock_quantity,
+                min_stock_level,
+                is_active,
+            } = form;
+
+            const dataToSend = {
+                name,
+                slug,
+                price,
+                cost_price,
+                unit,
+                image: uploadedFileName,
+                short,
+                category_id,
+                featured,
+                discount,
+                is_new,
+                is_best_seller,
+                stock_quantity,
+                min_stock_level,
+                is_active,
+            };
+
             let res;
             if (editing) {
-                // 🟢 Cập nhật sản phẩm
-                res = await axios.put<Product>(`/api/admin/products/${editing.id}`, form);
+                res = await axios.put<Product>(`/api/admin/products/${editing.id}`, dataToSend);
                 onUpdate?.(res.data);
             } else {
-                // 🟢 Thêm mới sản phẩm
-                res = await axios.post<Product>(`/api/admin/products`, form);
+                res = await axios.post<Product>(`/api/admin/products`, dataToSend);
                 onAdd?.(res.data);
             }
+
         } catch (err) {
-            console.error("Lỗi khi lưu sản phẩm:", err);
-            alert("❌ Không thể lưu sản phẩm!");
+            console.error("❌ Lỗi khi lưu sản phẩm:", err);
+            alert("Không thể lưu sản phẩm!");
         } finally {
             setLoading(false);
         }
@@ -150,7 +192,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                 {editing ? "✏️ Cập nhật sản phẩm" : "➕ Thêm mới sản phẩm"}
             </h2>
 
-            {/* Tên sản phẩm */}
+            {/* 🔹 Tên sản phẩm */}
             <div>
                 <label className="block font-medium mb-1 text-gray-700">Tên sản phẩm</label>
                 <input
@@ -163,7 +205,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                 />
             </div>
 
-            {/* Giá bán + Giá vốn */}
+            {/* 🔹 Giá bán & Giá vốn */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label className="block font-medium mb-1 text-gray-700">Giá bán (đ)</label>
@@ -188,14 +230,14 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                 </div>
             </div>
 
-            {/* Ảnh sản phẩm */}
+            {/* 🔹 Ảnh */}
             <div>
                 <label className="block font-medium mb-2 text-gray-700">Ảnh sản phẩm</label>
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-green-500 transition cursor-pointer">
                     <input
                         type="file"
                         accept="image/*"
-                        onChange={handleImageChange}
+                        onChange={handleFileChange}
                         className="hidden"
                         id="product-image-upload"
                     />
@@ -215,7 +257,37 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                 </div>
             </div>
 
-            {/* Danh mục */}
+            {/* 🔹 Tồn kho & Số lượng tối thiểu */}
+            <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
+                {/* <div>
+                    <label className="block font-medium mb-1 text-gray-700">Tồn kho hiện tại</label>
+                    <input
+                        name="stock_quantity"
+                        type="number"
+                        value={form.stock_quantity}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"
+                        placeholder="Nhập số lượng tồn..."
+                        min={0}
+                    />
+                </div> */}
+
+                <div>
+                    <label className="block font-medium mb-1 text-gray-700">Số lượng tối thiểu</label>
+                    <input
+                        name="min_stock_level"
+                        type="number"
+                        value={form.min_stock_level}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"
+                        placeholder="Nhập số lượng tối thiểu..."
+                        min={0}
+                    />
+                </div>
+            </div>
+
+
+            {/* 🔹 Danh mục */}
             <div>
                 <label className="block font-medium mb-1 text-gray-700">Danh mục</label>
                 <select
@@ -233,12 +305,13 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                 </select>
             </div>
 
-            {/* Cờ */}
+            {/* 🔹 Cờ (checkbox) */}
             <div className="flex flex-wrap gap-4">
                 {[
                     { name: "is_new", label: "Mới" },
                     { name: "is_best_seller", label: "Bán chạy" },
                     { name: "featured", label: "Nổi bật" },
+                    //   { name: "is_active", label: "Đang bán" },
                 ].map((opt) => (
                     <label key={opt.name} className="flex items-center gap-2 text-gray-700">
                         <input
@@ -253,7 +326,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                 ))}
             </div>
 
-            {/* Nút gửi */}
+            {/* 🔹 Nút gửi */}
             <button
                 type="submit"
                 disabled={loading}

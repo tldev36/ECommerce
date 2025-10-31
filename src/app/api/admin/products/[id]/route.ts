@@ -12,6 +12,7 @@ export async function PUT(
     const updated = await prisma.products.update({
       where: { id },
       data,
+      include: { categories: true },
     });
 
     return NextResponse.json(updated);

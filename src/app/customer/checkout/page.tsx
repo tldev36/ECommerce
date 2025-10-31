@@ -262,6 +262,7 @@ export default function CheckoutPage() {
       if (success) {
         alert(`🎉 Đặt hàng thành công! Mã đơn: ${order.order_code}`);
         clearCart();
+        router.push("/customer/home");
       } else {
         alert("❌ Lỗi khi tạo đơn hàng!");
       }

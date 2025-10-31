@@ -8,7 +8,7 @@ export default function Main() {
 
   useEffect(() => {
     router.push("/customer/home");
-  }, [router]);
+  }, []);
 
   return <></>;
 }

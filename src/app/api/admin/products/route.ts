@@ -38,6 +38,7 @@ export async function POST(req: Request) {
         created_at: new Date(),
         updated_at: new Date(),
       },
+      include: { categories: true },
     });
 
     return NextResponse.json(product);
