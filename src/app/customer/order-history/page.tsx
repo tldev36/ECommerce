@@ -1,58 +1,82 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import axios from "axios";
 import OrderDetailModal from "@/components/OrderDetailModal";
-
-interface Order {
-  id: string;
-  date: string;
-  status: string;
-  total: number;
-  items: { name: string; price: number; quantity: number }[];
-}
-
-const orders: Order[] = [
-  {
-    id: "DH001",
-    date: "2025-08-01",
-    status: "Đã giao",
-    total: 1500000,
-    items: [
-      { name: "Gạo ST25", price: 25000, quantity: 10 },
-      { name: "Dầu ăn Neptune", price: 45000, quantity: 5 },
-    ],
-  },
-  {
-    id: "DH002",
-    date: "2025-07-20",
-    status: "Đang xử lý",
-    total: 820000,
-    items: [{ name: "Hạt giống cà chua", price: 20000, quantity: 10 }],
-  },
-  {
-    id: "DH003",
-    date: "2025-07-10",
-    status: "Đã hủy",
-    total: 450000,
-    items: [{ name: "Phân bón NPK", price: 150000, quantity: 3 }],
-  },
-];
+import { Order } from "@/types/order";
+import { useCart } from "@/context/CartContext";
 
 export default function OrderHistoryPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
+  const { user, isLoggedIn } = useCart();
+
+  // 🧩 Debug
+  useEffect(() => {
+    console.log("=== CART PAGE DEBUG ===");
+    console.log("isLoggedIn:", isLoggedIn);
+    console.log("user:", user);
+  }, [isLoggedIn, user]);
+
+  // 🔹 Lấy danh sách đơn hàng
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (!isLoggedIn || !user?.id) return;
+
+      setLoading(true);
+      try {
+        const res = await axios.post<Order[]>("/api/orders/me", { user_id: user.id });
+        setOrders(res.data);
+      } catch (err) {
+        console.error("Lỗi khi tải đơn hàng:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [user?.id, isLoggedIn]); // 👈 thêm cả isLoggedIn
+
+  // 🔹 Helper màu trạng thái
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Đã giao":
+      case "delivered":
         return "text-green-600 bg-green-100";
       case "Đang xử lý":
+      case "processing":
         return "text-yellow-600 bg-yellow-100";
       case "Đã hủy":
+      case "cancelled":
         return "text-red-600 bg-red-100";
       default:
         return "text-gray-600 bg-gray-100";
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-gray-500 animate-pulse">Đang tải đơn hàng...</div>
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="text-center py-12 bg-white rounded-xl shadow-md border">
+        <h2 className="text-xl font-semibold mb-2">Vui lòng đăng nhập để xem đơn hàng</h2>
+        <a
+          href="/login"
+          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+        >
+          Đăng nhập
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -88,25 +112,21 @@ export default function OrderHistoryPage() {
               {orders.map((order, index) => (
                 <tr
                   key={order.id}
-                  className={`${index % 2 === 0 ? "bg-gray-50" : "bg-white"
-                    } hover:bg-green-50 transition`}
+                  className={`${index % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-green-50 transition`}
                 >
-                  <td className="px-6 py-4 font-medium">{order.id}</td>
-                  <td className="px-6 py-4">{order.date}</td>
+                  <td className="px-6 py-4 font-medium">{order.order_code}</td>
+                  <td className="px-6 py-4">
+                    {new Date(order.created_at ?? "").toLocaleDateString("vi-VN")}
+                  </td>
                   <td className="px-6 py-4">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                        order.status
-                      )}`}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}
                     >
                       {order.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 font-semibold text-green-600">
-                    {order.total.toLocaleString("vi-VN", {
-                      style: "currency",
-                      currency: "VND",
-                    })}
+                    {Number(order.total_amount).toLocaleString("vi-VN")} ₫
                   </td>
                   <td className="px-6 py-4 text-center">
                     <button
@@ -123,11 +143,8 @@ export default function OrderHistoryPage() {
         </div>
       )}
 
-      {/* Modal */}
-      <OrderDetailModal
-        order={selectedOrder}
-        onClose={() => setSelectedOrder(null)}
-      />
+      {/* 🔹 Modal chi tiết */}
+      <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
     </div>
   );
 }

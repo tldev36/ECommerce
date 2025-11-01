@@ -80,7 +80,7 @@ export default function ShippingFeeCalculator({
         🚚 Tính phí giao hàng GHN (Tự động)
       </h2>
 
-      <div>
+      {/* <div>
         <label className="block text-sm font-medium text-gray-600 mb-1">
           Địa chỉ khách hàng
         </label>
@@ -110,7 +110,7 @@ export default function ShippingFeeCalculator({
         className="w-full py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:bg-gray-400"
       >
         {loading ? "Đang tính phí..." : "Tính lại phí vận chuyển"}
-      </button>
+      </button> */}
 
       {result && (
         <div className="mt-4 p-4 border rounded-xl bg-gray-50">

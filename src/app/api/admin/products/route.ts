@@ -18,13 +18,15 @@ export async function POST(req: Request) {
   try {
     const data = await req.json();
 
+    console.log("Received product data:", data);
+
     const product = await prisma.products.create({
       data: {
         name: data.name,
         category_id: data.category_id,
         slug: data.slug,
-        price: data.price,
-        cost_price: data.cost_price,
+        price: Number(data.price),
+        cost_price: Number(data.cost_price),
         unit: data.unit,
         image: data.image,
         short: data.short,
@@ -40,6 +42,8 @@ export async function POST(req: Request) {
       },
       include: { categories: true },
     });
+    
+    console.log("Created product:", product);
 
     return NextResponse.json(product);
   } catch (error) {

@@ -3,11 +3,13 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import { useCart } from "@/context/CartContext";
+import { useRouter } from "next/navigation";
 
 export default function ZaloPayCallbackPage() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"pending" | "success" | "failed">("pending");
   const { clearCart } = useCart();
+  const router = useRouter();
 
   useEffect(() => {
     // Lấy giá trị `apptransid` từ URL
@@ -38,6 +40,8 @@ export default function ZaloPayCallbackPage() {
 
           // ✅ Xóa giỏ hàng khi thanh toán thành công
           clearCart();
+
+          router.push("/customer/home");
         } else {
           setStatus("failed");
         }

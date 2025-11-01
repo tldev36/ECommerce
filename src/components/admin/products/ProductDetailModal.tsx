@@ -15,6 +15,7 @@ import {
   faCalendarAlt,
   faList,
   faFont,
+  faScaleBalanced,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface Props {
@@ -63,15 +64,16 @@ export default function ProductDetailModal({ open, onClose, product }: Props) {
               value={product.categories?.name || "Chưa có danh mục"}
             />
             <InfoRow icon={faTag} label="Slug" value={product.slug} />
+            <InfoRow icon={faScaleBalanced} label="Unit" value={product.unit} />
             <InfoRow
               icon={faDollarSign}
               label="Giá bán"
-              value={`${product.price.toLocaleString("vi-VN")} đ`}
+              value={`${product.price?.toLocaleString("vi-VN")} đ`}
             />
             <InfoRow
               icon={faDollarSign}
               label="Giá vốn"
-              value={`${product.cost_price.toLocaleString("vi-VN")} đ`}
+              value={`${product.cost_price?.toLocaleString("vi-VN")} đ`}
             />
             <InfoRow
               icon={faBoxes}

@@ -149,8 +149,11 @@ export default function ProductsPage() {
                   <td className="p-3 border-b text-gray-600 text-center">
                     {p.categories?.name || "—"}
                   </td>
-                  <td className="p-3 border-b text-right text-green-700 font-medium">
-                    {p.price.toLocaleString("vi-VN")} đ
+                  <td className="p-3 border-b text-right">
+                    <span className="text-green-700 font-semibold">
+                     {Number(p.price).toLocaleString("vi-VN")}
+                    </span>
+                    <span className="text-sm text-gray-500 ml-1">VNĐ</span>
                   </td>
                   <td className="p-3 border-b text-center">
                     <ProductStatusIcons product={p} />

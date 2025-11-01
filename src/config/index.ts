@@ -16,3 +16,11 @@ export const MOMO_CONFIG = {
   CREATE_PATH: process.env.MOMO_CREATE_PATH || "/v2/gateway/api/create",
   BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000",
 };
+
+// ghn config
+export const GHN_CONFIG = {
+  BASE_URL: process.env.GHN_BASE_URL || "https://dev-online-gateway.ghn.vn/shiip/public-api",
+  TOKEN: process.env.GHN_TOKEN || "",
+  SHOP_ID: Number(process.env.GHN_SHOP_ID) || 0,
+  CLIENT_ID: process.env.GHN_CLIENT_ID || "",
+};

@@ -52,8 +52,35 @@ export default function CheckoutPage() {
     shippingFee,
   ]);
 
+  // 🧩 Lấy thông tin user ngay khi load trang
+  // useEffect(() => {
+  //   const fetchUser = async () => {
+  //     try {
+  //       const res = await fetch("/api/auth/me", { credentials: "include" });
+  //       const data = await res.json();
+
+  //       if (res.ok && data.user) {
+  //         console.log("👤 User loaded:", data.user);
+  //         // Nếu context chưa có user, có thể cập nhật tạm ở đây
+  //         // (tuỳ cách bạn lưu user trong CartContext)
+  //       } else {
+  //         console.warn("⚠️ Không tìm thấy user hoặc chưa đăng nhập");
+  //       }
+  //     } catch (err) {
+  //       console.error("❌ Lỗi khi lấy thông tin user:", err);
+  //     }
+  //   };
+
+  //   fetchUser();
+  // }, []);
+
+
   // 🧩 Log kiểm tra user & isLoggedIn
   useEffect(() => {
+
+    fetch("/api/auth/me", { credentials: "include" })
+      .then(r => r.json())
+      .then(console.log);
     console.log("=== CHECKOUT DEBUG ===");
     console.log("isLoggedIn:", isLoggedIn);
     console.log("user:", user);
@@ -63,9 +90,7 @@ export default function CheckoutPage() {
       document.cookie.includes("token") ? "✅ Có token" : "❌ Không có token"
     );
 
-    fetch("/api/auth/me", { credentials: "include" })
-      .then(r => r.json())
-      .then(console.log);
+    
   }, [isLoggedIn, user, cart]);
 
 
@@ -185,6 +210,39 @@ export default function CheckoutPage() {
       payment_method: paymentMethod,
     };
 
+    const addr = selectedAddr;
+
+    const parts = addr?.province_district_ward?.split(",").map(p => p.trim()) || [];
+
+    // Giả sử parts = ["Phường Phú Cường", "Thành phố Thủ Dầu Một", "Bình Dương"]
+    const ward_name = parts[0] || "";
+    const district_name = parts[1] || "";
+    const province_name = parts[2] || "";
+
+
+    const orderInfoghn = {
+      user_id: user.id,
+      shipping_address_id: addr?.id,
+      shipping_address: {
+        name: addr?.recipient_name,
+        phone: addr?.phone,
+        address: addr?.detail_address, // ví dụ: "123 Đường ABC"
+        ward_code: ward_name,    // mã phường GHN (vd: 440108)
+        district_id: district_name, // mã quận GHN (vd: 1501)
+      },
+      items: cart.map((item) => ({
+        product_id: item.product_id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        weight: item.unit || 200, // gram
+        discount_percent: item.dicount_percent || 0,
+      })),
+      total_amount: total + shippingFee,
+      payment_method: paymentMethod,
+      coupon_id: couponCode || null,
+    };
+
     // Nếu chọn MoMo
     if (paymentMethod === "momo") {
       try {
@@ -256,7 +314,7 @@ export default function CheckoutPage() {
 
     // Nếu là COD hoặc các phương thức khác
     try {
-      const res = await axios.post("/api/orders", orderInfo);
+      const res = await axios.post("/api/orders", orderInfoghn);
       const { success, order } = res.data as { success: boolean; order: any };
 
       if (success) {

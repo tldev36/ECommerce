@@ -111,9 +111,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             product_id: product.id,
             name: product.name,
             slug: product.slug,
-            price: product.price,
-            unit: product.unit,
-            image: product.image,
+            price: product.price || 0,
+            unit: product.unit || "0gram",
+            image: product.image || "",
             quantity: 1,
           },
         ]);

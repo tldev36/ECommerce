@@ -34,19 +34,19 @@ export async function POST(req: Request) {
       .slice(-2)}`; // ví dụ: ORDAB12CD34
 
 
-    // ✅ app_trans_id đúng format: yymmdd_OrderCode
-    // 🌏 Thời gian theo GMT+7
+    // 🌏 Lấy thời gian theo GMT+7
     const now = new Date();
-    const yyMMdd = now
-      .toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })
-      .split("/")
-      .reverse()
-      .join("")
-      .slice(2);
+    const yy = String(now.getFullYear()).slice(2);          // 25
+    const mm = String(now.getMonth() + 1).padStart(2, "0"); // 11
+    const dd = String(now.getDate()).padStart(2, "0");      // 01
+    const yyMMdd = `${yy}${mm}${dd}`;
+    
     const app_trans_id = `${yyMMdd}_${orderCode}`;
 
     const app_time = Date.now();
     const app_user = user_id.toString();
+
+    console.log("🆕 user_id:", app_user);
 
     // 🔹 embed_data và item phải là JSON string
     const embed_data = JSON.stringify({
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     const item_str = JSON.stringify(items);
 
     const amountzalo = Number(total_amount);
-    
+
     // 🔹 MAC = HMAC_SHA256(app_id|app_trans_id|app_user|amount|app_time|embed_data|item)
     const mac_input = `${ZALO_CONFIG.APP_ID}|${app_trans_id}|${app_user}|${amountzalo}|${app_time}|${embed_data}|${item_str}`;
     const mac = generateMac(ZALO_CONFIG.KEY1, mac_input);
@@ -117,6 +117,7 @@ export async function POST(req: Request) {
     });
 
     console.log("✅ Đơn hàng đã lưu DB:", order.id, "→ order_code:", orderCode);
+    console.log("🔍 ZaloPay  trả về đầy đủ:", JSON.stringify(result, null, 2));
 
     // ⚙️ 3️⃣ Nếu ZaloPay tạo đơn thành công → trả về cho frontend
     if (result.return_code === 1) {
@@ -128,6 +129,7 @@ export async function POST(req: Request) {
         order_id: order.id, // để frontend biết order nào
         order_code: order.order_code,
       });
+
     }
 
     // ⚙️ 4️⃣ Nếu ZaloPay thất bại

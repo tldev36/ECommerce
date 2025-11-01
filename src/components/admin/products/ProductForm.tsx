@@ -16,8 +16,8 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
     const [form, setForm] = useState<Omit<Product, "id" | "created_at" | "updated_at">>({
         name: "",
         slug: "",
-        price: 0,
-        cost_price: 0,
+        price: null,
+        cost_price: null,
         unit: "",
         image: "",
         short: "",
@@ -27,7 +27,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
         is_new: false,
         is_best_seller: false,
         stock_quantity: 0,
-        min_stock_level: 0,
+        min_stock_level: null,
         is_active: true,
         categories: null,
     });
@@ -212,9 +212,10 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                     <input
                         name="price"
                         type="number"
-                        value={form.price}
+                        value={form.price || ""}
                         onChange={handleChange}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"
+                        placeholder="Nhập giá bán..."
                         required
                     />
                 </div>
@@ -223,9 +224,10 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                     <input
                         name="cost_price"
                         type="number"
-                        value={form.cost_price}
+                        value={form.cost_price || ""}
                         onChange={handleChange}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"
+                        placeholder="Nhập giá vốn..."
                     />
                 </div>
             </div>
@@ -258,30 +260,30 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
             </div>
 
             {/* 🔹 Tồn kho & Số lượng tối thiểu */}
-            <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
-                {/* <div>
-                    <label className="block font-medium mb-1 text-gray-700">Tồn kho hiện tại</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label className="block font-medium mb-1 text-gray-700">Khối lượng (gram)</label>
                     <input
-                        name="stock_quantity"
-                        type="number"
-                        value={form.stock_quantity}
+                        name="unit"
+                        type="text"
+                        value={form.unit || ""}
                         onChange={handleChange}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"
-                        placeholder="Nhập số lượng tồn..."
-                        min={0}
+                        placeholder="Nhập khối lượng..."
+                        
                     />
-                </div> */}
+                </div>
 
                 <div>
                     <label className="block font-medium mb-1 text-gray-700">Số lượng tối thiểu</label>
                     <input
                         name="min_stock_level"
                         type="number"
-                        value={form.min_stock_level}
+                        value={form.min_stock_level || ""}
                         onChange={handleChange}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500"
                         placeholder="Nhập số lượng tối thiểu..."
-                        min={0}
+                        
                     />
                 </div>
             </div>

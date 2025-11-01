@@ -1,3 +1,11 @@
+export interface ProductSummary {
+  id: number;
+  name: string;
+  slug: string;
+  image: string | null;
+  price: number;
+}
+
 export interface OrderItem {
   id?: number;
   order_id?: number;
@@ -7,6 +15,7 @@ export interface OrderItem {
   discount_percent?: number;
   final_price?: number;
   subtotal?: number;
+  product?: ProductSummary | null;
 }
 
 export interface Order {
