@@ -78,6 +78,13 @@ export default function OrderHistoryPage() {
     );
   }
 
+  function formatAddress(addressString?: string) {
+    if (!addressString) return null; // tránh lỗi null/undefined
+    return addressString.split("-").map((line, index) => (
+      <div key={index}>{line.trim()}</div>
+    ));
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">📦 Lịch sử đơn hàng</h1>
@@ -105,6 +112,8 @@ export default function OrderHistoryPage() {
                 <th className="px-6 py-4 text-left font-semibold">Ngày đặt</th>
                 <th className="px-6 py-4 text-left font-semibold">Trạng thái</th>
                 <th className="px-6 py-4 text-left font-semibold">Tổng tiền</th>
+                <th className="px-6 py-4 text-left font-semibold">Địa chỉ</th>
+
                 <th className="px-6 py-4 text-center font-semibold">Hành động</th>
               </tr>
             </thead>
@@ -126,7 +135,10 @@ export default function OrderHistoryPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 font-semibold text-green-600">
-                    {Number(order.total_amount).toLocaleString("vi-VN")} ₫
+                    {Number(order.amount).toLocaleString("vi-VN")} ₫
+                  </td>
+                  <td className="px-6 py-4 font-semibold text-green-600">
+                    {formatAddress(order.shipping_address)}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <button

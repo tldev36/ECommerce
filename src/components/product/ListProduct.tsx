@@ -12,6 +12,16 @@ interface ListProductProps {
   slug?: string;
 }
 
+function removeVietnameseTones(str: string) {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // bỏ dấu
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+}
+
+
 export default function ListProduct({ slug }: ListProductProps) {
 
   const searchParams = useSearchParams();
@@ -22,9 +32,11 @@ export default function ListProduct({ slug }: ListProductProps) {
 
   const [search, setSearch] = useState("");
 
+
+
   // Lấy search từ URL khi param thay đổi
   useEffect(() => {
-    const q = searchParams.get("search") || "";
+    const q = searchParams?.get("search") || "";
     setSearch(q.toLowerCase());
   }, [searchParams]);
 
@@ -55,12 +67,16 @@ export default function ListProduct({ slug }: ListProductProps) {
 
   };
 
-  // 👉 Filter theo danh mục + search
   const filteredProducts = products.filter((p) => {
     const matchCategory =
       selectedCategory === "tat-ca" ||
       p.categories?.slug === selectedCategory;
-    const matchSearch = p.name.toLowerCase().includes(search);
+
+    // chuẩn hóa cả tên sản phẩm và từ khóa search
+    const normalizedName = removeVietnameseTones(p.name);
+    const normalizedSearch = removeVietnameseTones(search);
+
+    const matchSearch = normalizedName.includes(normalizedSearch);
     return matchCategory && matchSearch;
   });
 

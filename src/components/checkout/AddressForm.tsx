@@ -12,6 +12,7 @@ interface AddressFormProps {
   handleDeleteAddress?: (deletedId: number) => void;
 }
 
+
 export default function AddressForm({
   editingAddress,
   handleAddAddress,
@@ -21,7 +22,9 @@ export default function AddressForm({
   const [recipientName, setRecipientName] = useState("");
   const [phone, setPhone] = useState("");
   const [detailAddress, setDetailAddress] = useState("");
-  const [location, setLocation] = useState(""); // Tỉnh / Huyện / Xã
+  const [province, setProvince] = useState("");
+  const [district, setDistrict] = useState("");
+  const [ward, setWard] = useState("");
   const [isDefault, setIsDefault] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -31,45 +34,62 @@ export default function AddressForm({
       setRecipientName(editingAddress.recipient_name);
       setPhone(editingAddress.phone);
       setDetailAddress(editingAddress.detail_address);
-      setLocation(editingAddress.province_district_ward || "");
+      setProvince(editingAddress.province_name || "");
+      setDistrict(editingAddress.district_name || "");
+      setWard(editingAddress.ward_name || "");
       setIsDefault(editingAddress.default || false);
     } else {
       setRecipientName("");
       setPhone("");
       setDetailAddress("");
-      setLocation("");
+      setProvince("");
+      setDistrict("");
+      setWard("");
       setIsDefault(false);
     }
   }, [editingAddress]);
 
+  const data = {
+    recipient_name: recipientName,
+    phone,
+    detail_address: detailAddress,
+    province_name: province,
+    district_name: district,
+    ward_name: ward,
+    default: isDefault,
+  };
+
   // 🔹 Hàm thêm địa chỉ mới
   const addAddress = async () => {
-    const data = {
-      recipient_name: recipientName,
-      phone,
-      detail_address: detailAddress,
-      province_district_ward: location,
-      default: isDefault,
-    };
+    // const data = {
+    //   recipient_name: recipientName,
+    //   phone,
+    //   detail_address: detailAddress,
+    //   province_name: province,
+    //   district_name: district,
+    //   ward_name: ward,
+    //   default: isDefault,
+    // };
 
     const res = await axios.post<any>("/api/shipping-address", data, {
       withCredentials: true,
     });
+    console.log("dia chi :", res)
 
     return res.data.address;
   };
 
   // 🔹 Hàm cập nhật địa chỉ cũ
   const updateAddress = async () => {
-
-
-    const data = {
-      recipient_name: recipientName,
-      phone,
-      detail_address: detailAddress,
-      province_district_ward: location,
-      default: isDefault,
-    };
+    // const data = {
+    //   recipient_name: recipientName,
+    //   phone,
+    //   detail_address: detailAddress,
+    //   province_name: province,
+    //   district_name: district,
+    //   ward_name: ward,
+    //   default: isDefault,
+    // };
 
     const res = await axios.put<any>(
       `/api/shipping-address/${editingAddress?.id}`,
@@ -90,6 +110,13 @@ export default function AddressForm({
 
     handleDeleteAddress?.(editingAddress.id);
     alert("🗑️ Đã xóa địa chỉ thành công!");
+    setRecipientName("");
+    setPhone("");
+    setDetailAddress("");
+    setProvince("");
+    setDistrict("");
+    setWard("");
+    setIsDefault(false);
   };
 
 
@@ -114,9 +141,10 @@ export default function AddressForm({
       setRecipientName("");
       setPhone("");
       setDetailAddress("");
-      setLocation("");
+
       setIsDefault(false);
     } catch (err: any) {
+      console.log("dddd :", data)
       console.error("💥 Lỗi lưu địa chỉ:", err.response?.data || err.message);
       alert(
         "Lỗi lưu địa chỉ: " +
@@ -176,7 +204,14 @@ export default function AddressForm({
         <label className="block text-sm text-gray-700 mb-1">
           Tỉnh / Quận / Xã
         </label>
-        <VietnamAddressSelector onChange={setLocation} />
+        <VietnamAddressSelector
+          onChange={(values) => {
+            setProvince(values.province_name);
+            setDistrict(values.district_name);
+            setWard(values.ward_name);
+          }}
+        />
+
       </div>
 
       {/* ✅ Checkbox địa chỉ mặc định */}
@@ -195,7 +230,7 @@ export default function AddressForm({
 
       {/* 🛎️ Nút Xóa / Lưu */}
       <div className="flex items-center justify-between gap-3 mt-4">
-        
+
 
         <button
           type="submit"

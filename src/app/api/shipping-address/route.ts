@@ -15,22 +15,42 @@ export async function POST(req: Request) {
 
     // Giải mã token
     const decoded = jwt.verify(token, SECRET) as { id: number };
-    const { recipient_name, phone, detail_address, province_district_ward } = await req.json();
+    // 🔹 Lấy dữ liệu từ body
+    const {
+      recipient_name,
+      phone,
+      detail_address,
+      ward_name,
+      district_name,
+      province_name,
+      default: isDefault,
+    } = await req.json();
 
-    // Kiểm tra dữ liệu gửi lên
-    if (!recipient_name || !phone || !detail_address || !province_district_ward) {
-      return NextResponse.json({ error: "Thiếu dữ liệu" }, { status: 400 });
+    // 🔹 Kiểm tra dữ liệu bắt buộc
+    if (!recipient_name || !phone || !detail_address || !ward_name) {
+      return NextResponse.json({ error: "Thiếu dữ liệu bắt buộc" }, { status: 400 });
     }
 
-    // Thêm mới vào DB
+    // 🔹 Nếu có đặt mặc định, bỏ mặc định cũ
+    if (isDefault) {
+      await prisma.shipping_addresses.updateMany({
+        where: { user_id: decoded.id, default: true },
+        data: { default: false },
+      });
+    }
+
+    // 🔹 Thêm mới vào DB
     const address = await prisma.shipping_addresses.create({
       data: {
         user_id: decoded.id,
         recipient_name,
         phone,
         detail_address,
-        province_district_ward,
-        create_at: new Date(),   // nếu bạn muốn lưu thời gian
+        ward_name,
+        district_name,
+        province_name,
+        default: !!isDefault,
+        create_at: new Date(),
         update_at: new Date(),
       },
     });

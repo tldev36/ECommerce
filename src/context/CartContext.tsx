@@ -5,16 +5,21 @@ import axios from "axios";
 import { Product } from "@/types/product";
 import { CartItem } from "@/types/cartItem";
 
+
 interface CartContextType {
   cart: CartItem[];
   user: any | null;
   isLoggedIn: boolean;
+  loadingUser: boolean;
   setCart: (items: CartItem[]) => void;
   addItem: (product: Product) => void;
   removeItem: (id: number) => void;
   updateQuantity: (id: number, quantity: number) => void;
   clearCart: () => void;
   setCartFromServer: (items: CartItem[]) => void;
+
+  fetchUser: () => Promise<void>;
+  fetchCart: () => Promise<void>;
 }
 
 interface MeResponse {
@@ -34,37 +39,149 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [user, setUser] = useState<any | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loadingUser, setLoadingUser] = useState(true);
 
 
-  useEffect(() => {
-    console.log("👤 User hiện tại:", user);
-  }, [user]);
+
+  // 🧩 Gán user tạm từ token (client-side decode)
+  // useEffect(() => {
+  //   const fetchUser = async () => {
+  //     try {
+  //       // 🧩 Gọi API lấy user
+  //       const userRes = await axios.get<MeResponse>("/api/auth/me", {
+  //         withCredentials: true,
+  //       });
+
+  //       if (userRes.data?.user) {
+  //         setUser(userRes.data.user);
+  //         setIsLoggedIn(true);
+  //       } else {
+  //         setUser(null);
+  //         setIsLoggedIn(false);
+  //       }
+  //     } catch (err) {
+  //       console.warn("❌ Lỗi lấy user:", err);
+  //       setUser(null);
+  //       setIsLoggedIn(false);
+  //     }
+  //   };
+
+  //   fetchUser(); // ⬅️ gọi ngay
+  // }, []);
+
   // ----------------------------
   // Load user + cart khi mount
   // ----------------------------
-  useEffect(() => {
-    const fetchUserAndCart = async () => {
-      try {
-        // Lấy thông tin user từ server
-        const userRes = await axios.get<MeResponse>("/api/auth/me", { withCredentials: true });
-        if (userRes.data.user) {
-          setUser(userRes.data.user);
-          setIsLoggedIn(true);
-        }
+  // useEffect(() => {
+  //   const fetchUser = async () => {
+  //     try {
+  //       const res = await axios.get<MeResponse>("/api/auth/me", { withCredentials: true });
+  //       if (res.data.user) {
+  //         setUser(res.data.user);
+  //         setIsLoggedIn(true);
+  //       } else {
+  //         setIsLoggedIn(false);
+  //         setUser(null);
+  //       }
+  //     } catch {
+  //       setIsLoggedIn(false);
+  //       setUser(null);
+  //     } finally {
+  //       setLoadingUser(false);
+  //     }
+  //   };
 
-        // Lấy giỏ hàng từ server
-        const cartRes = await axios.get<{ cart: CartItem[] }>("/api/cart", { withCredentials: true });
-        if (cartRes.data?.cart) setCart(cartRes.data.cart);
-      } catch {
-        // fallback: chưa login → lấy cart từ cookie
+  //   const fetchCart = async () => {
+  //     try {
+  //       const res = await axios.get<{ cart: CartItem[] }>("/api/cart", { withCredentials: true });
+  //       if (res.data?.cart) {
+  //         setCart(res.data.cart);
+  //       } else {
+  //         // fallback lấy cart từ cookie
+  //         const storedCart = Cookies.get("cart");
+  //         if (storedCart) setCart(JSON.parse(storedCart));
+  //       }
+  //     } catch {
+  //       const storedCart = Cookies.get("cart");
+  //       if (storedCart) setCart(JSON.parse(storedCart));
+  //     }
+  //   };
+
+  //   // ✅ Gọi cả hai song song
+  //   const fetchUserAndCart = async () => {
+  //     await Promise.all([fetchUser(), fetchCart()]);
+  //   };
+
+  //   fetchUserAndCart();
+  // }, []);
+
+
+  // useEffect(() => {
+  //   const init = async () => {
+  //     try {
+  //       const [userRes, cartRes] = await Promise.all([
+  //         axios.get<MeResponse>("/api/auth/me", { withCredentials: true }),
+  //         axios.get<{ cart: CartItem[] }>("/api/cart", { withCredentials: true }),
+  //       ]);
+
+  //       if (userRes.data.user) {
+  //         setUser(userRes.data.user);
+  //         setIsLoggedIn(true);
+  //       } else {
+  //         setIsLoggedIn(false);
+  //       }
+
+  //       if (cartRes.data?.cart) {
+  //         setCart(cartRes.data.cart);
+  //       } else {
+  //         const storedCart = Cookies.get("cart");
+  //         if (storedCart) setCart(JSON.parse(storedCart));
+  //       }
+  //     } catch (err) {
+  //       console.warn("❌ Lỗi init:", err);
+  //     } finally {
+  //       setLoadingUser(false);
+  //     }
+  //   };
+
+  //   init();
+  // }, []);
+
+
+  // 🧩 Hàm fetchUser
+  const fetchUser = async () => {
+    try {
+      const res = await axios.get<MeResponse>("/api/auth/me", { withCredentials: true });
+      if (res.data.user) {
+        setUser(res.data.user);
+        setIsLoggedIn(true);
+      } else {
         setIsLoggedIn(false);
+        setUser(null);
+      }
+    } catch {
+      setIsLoggedIn(false);
+      setUser(null);
+    } finally {
+      setLoadingUser(false);
+    }
+  };
+
+  // 🧩 Hàm fetchCart
+  const fetchCart = async () => {
+    try {
+      const res = await axios.get<{ cart: CartItem[] }>("/api/cart", { withCredentials: true });
+      if (res.data?.cart) {
+        setCart(res.data.cart);
+      } else {
         const storedCart = Cookies.get("cart");
         if (storedCart) setCart(JSON.parse(storedCart));
       }
-    };
-
-    fetchUserAndCart();
-  }, []);
+    } catch {
+      const storedCart = Cookies.get("cart");
+      if (storedCart) setCart(JSON.parse(storedCart));
+    }
+  };
 
   // ----------------------------
   // Helper cookie
@@ -211,12 +328,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         cart,
         user,
         isLoggedIn,
+        loadingUser,
         setCart,
         addItem,
         removeItem,
         updateQuantity,
         clearCart,
         setCartFromServer,
+        fetchUser,
+        fetchCart,
       }}
     >
       {children}

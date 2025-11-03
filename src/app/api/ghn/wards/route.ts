@@ -15,6 +15,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({ district_id: Number(districtId) }), // ✅ Đúng
     });
 
+    console.log("ward :",res)
     const data = await res.json();
     return NextResponse.json(data);
   } catch (err) {

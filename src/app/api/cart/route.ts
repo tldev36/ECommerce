@@ -1,39 +1,24 @@
 // /app/api/cart/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
+import { getUserFromToken } from "@/lib/auth";
 
-const SECRET = process.env.JWT_SECRET || "supersecret";
-
-function getUserIdFromCookie(): number | null {
-  const cookieStore: any = cookies(); // ✅ không cần await
-  const token = cookieStore.get("token")?.value;
-
-  if (!token) return null;
-
-  try {
-    const decoded = jwt.verify(token, SECRET) as { id: number };
-    return decoded.id;
-  } catch {
-    return null;
-  }
-}
-
-// ✅ Lấy giỏ hàng của user
+// ✅ Lấy giỏ hàng của user (dựa trên token trong cookie)
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
-    if (!token) return NextResponse.json({ cart: [] }, { status: 200 });
+    // Lấy user từ token
+    const user = await getUserFromToken();
+    if (!user) {
+      return NextResponse.json({ error: "Chưa đăng nhập", cart: [] }, { status: 401 });
+    }
 
-    const decoded = jwt.verify(token, SECRET) as { id: number };
-
+    // Lấy giỏ hàng từ DB theo user.id
     const items = await prisma.cart_items.findMany({
-      where: { user_id: decoded.id },
+      where: { user_id: user.id },
       include: { products: true },
     });
 
+    // Chuẩn hóa dữ liệu trả về
     const cart = items.map((item) => ({
       id: item.id,
       product_id: item.product_id,
@@ -42,18 +27,20 @@ export async function GET() {
       price: item.products.price,
       unit: item.products.unit,
       image: item.products.image,
-      quantity: item.quantity ?? 0,
+      quantity: item.quantity ?? 0, 
     }));
 
+    // Trả về response
     return NextResponse.json(
       {
-        user: { id: decoded.id },
+        user: { id: user.id, email: user.email, role: user.role },
         cart,
       },
       { status: 200 }
     );
+
   } catch (err) {
     console.error("❌ Lỗi lấy giỏ hàng:", err);
-    return NextResponse.json({ cart: [] }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi server", cart: [] }, { status: 500 });
   }
 }

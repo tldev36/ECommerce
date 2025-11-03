@@ -15,6 +15,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({ province_id: Number(provinceId) }), // ✅ Đúng định dạng
     });
 
+    console.log("distri :",res);
     const data = await res.json();
     return NextResponse.json(data);
   } catch (err) {

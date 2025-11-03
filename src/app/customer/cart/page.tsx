@@ -12,6 +12,7 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import { useRouter } from "next/navigation";
+import { getUserFromToken } from "@/lib/auth";
 
 export default function CartPage() {
   const { cart, removeItem, clearCart, updateQuantity, user, isLoggedIn } = useCart();
@@ -20,6 +21,8 @@ export default function CartPage() {
   const router = useRouter();
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+
 
   // 🧩 Thêm log để xem tình trạng đăng nhập và dữ liệu
   useEffect(() => {

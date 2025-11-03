@@ -18,7 +18,11 @@ interface Ward {
 }
 
 interface GHNAddressSelectorProps {
-  onChange: (fullAddress: string) => void;
+  onChange: (values: {
+    province_name: string;
+    district_name: string;
+    ward_name: string;
+  }) => void;
 }
 
 export default function GHNAddressSelector({ onChange }: GHNAddressSelectorProps) {
@@ -72,6 +76,22 @@ export default function GHNAddressSelector({ onChange }: GHNAddressSelectorProps
   }, [selectedDistrict]);
 
   // 🔹 4️⃣ Gửi địa chỉ đầy đủ ra ngoài khi người dùng chọn đủ 3 cấp
+  // useEffect(() => {
+  //   const provinceName =
+  //     provinces.find((p) => p.ProvinceID === selectedProvince)?.ProvinceName ||
+  //     "";
+  //   const districtName =
+  //     districts.find((d) => d.DistrictID === selectedDistrict)?.DistrictName ||
+  //     "";
+  //   const wardName =
+  //     wards.find((w) => w.WardCode === selectedWard)?.WardName || "";
+
+  //   onChange({
+  //     province_name: provinceName,
+  //     district_name: districtName,
+  //     ward_name: wardName,
+  //   });
+  // }, [selectedProvince, selectedDistrict, selectedWard]);
   useEffect(() => {
     const provinceName =
       provinces.find((p) => p.ProvinceID === selectedProvince)?.ProvinceName ||
@@ -82,12 +102,16 @@ export default function GHNAddressSelector({ onChange }: GHNAddressSelectorProps
     const wardName =
       wards.find((w) => w.WardCode === selectedWard)?.WardName || "";
 
-    const fullAddress = [wardName, districtName, provinceName]
-      .filter(Boolean)
-      .join(", ");
+    // ✅ Chỉ gọi khi có ít nhất 1 giá trị thay đổi
+    if (provinceName || districtName || wardName) {
+      onChange({
+        province_name: provinceName,
+        district_name: districtName,
+        ward_name: wardName,
+      });
+    }
+  }, [selectedProvince, selectedDistrict, selectedWard, provinces, districts, wards, onChange]);
 
-    onChange(fullAddress);
-  }, [selectedProvince, selectedDistrict, selectedWard]);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

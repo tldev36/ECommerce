@@ -14,22 +14,29 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const decoded = jwt.verify(token, SECRET) as { id: number };
+
+    // 🆔 Kiểm tra id hợp lệ
     const addressId = Number(params.id);
     if (Number.isNaN(addressId))
       return NextResponse.json({ error: "Id không hợp lệ" }, { status: 400 });
 
-    // 🧾 Lấy dữ liệu
-    const body = await req.json();
-    const { recipient_name, phone, detail_address, province_district_ward } =
-      body;
+    // 🧾 Lấy dữ liệu từ body
+    const {
+      recipient_name,
+      phone,
+      detail_address,
+      ward_name,
+      district_name,
+      province_name,
+      default: isDefault,
+    } = await req.json();
 
-    // 🧰 Kiểm tra các trường bắt buộc
+    // 🧰 Kiểm tra trường bắt buộc
     const missing: string[] = [];
     if (!recipient_name?.trim()) missing.push("Họ tên");
     if (!phone?.trim()) missing.push("Số điện thoại");
     if (!detail_address?.trim()) missing.push("Địa chỉ chi tiết");
-    if (!province_district_ward?.trim()) missing.push("Tỉnh/Quận/Xã");
-
+    if (!ward_name?.trim()) missing.push("Xã/Phường");
     if (missing.length) {
       return NextResponse.json(
         { error: `Thiếu: ${missing.join(", ")}` },
@@ -47,14 +54,25 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         { status: 404 }
       );
 
-    // 🚀 Cập nhật thông tin (không đụng đến cột `default`)
+    // 🧩 Nếu user đặt địa chỉ này là mặc định → bỏ mặc định ở địa chỉ khác
+    if (isDefault) {
+      await prisma.shipping_addresses.updateMany({
+        where: { user_id: decoded.id, default: true, NOT: { id: addressId } },
+        data: { default: false },
+      });
+    }
+
+    // 🚀 Cập nhật thông tin
     const updated = await prisma.shipping_addresses.update({
       where: { id: addressId },
       data: {
         recipient_name,
         phone,
         detail_address,
-        province_district_ward,
+        ward_name,
+        district_name,
+        province_name,
+        default: !!isDefault,
         update_at: new Date(),
       },
     });

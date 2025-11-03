@@ -33,6 +33,7 @@
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.62.0",
     "react-slick": "^0.31.0",
+    "recharts": "^3.3.0",
     "slick-carousel": "^1.8.1",
     "vietnam-address-database": "^1.0.0",
     "zod": "^4.1.3"

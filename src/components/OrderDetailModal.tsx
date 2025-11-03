@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Order } from "@/types/order";
+import { Order_Item } from "@/types/order_item";
 import { useEffect } from "react";
 
 interface OrderDetailModalProps {
@@ -86,6 +87,16 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
                 {order.status}
               </span>
             </p>
+            <p>
+              Tiền ship:{" "}
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
+                  order.ship_amount.toString()
+                )}`}
+              >
+                {order.ship_amount.toString()} VND
+              </span>
+            </p>
           </div>
 
           {/* 🔹 Danh sách sản phẩm */}
@@ -138,7 +149,7 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
 
           {/* 🔹 Tổng tiền */}
           <div className="text-right text-lg font-bold text-green-600">
-            Tổng tiền: {Number(order.total_amount).toLocaleString("vi-VN")} ₫
+            Tổng tiền: {Number(order.amount).toLocaleString("vi-VN")} ₫
           </div>
         </motion.div>
       </motion.div>

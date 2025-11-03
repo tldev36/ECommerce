@@ -1,8 +1,13 @@
 export interface Address {
-  id?: number; // cho phép undefined khi thêm mới
-  recipient_name: string;
-  phone: string;
-  detail_address: string;           // số nhà, tên đường...
-  province_district_ward: string;   // tỉnh / huyện / xã
-  default?: boolean; 
+  id?: number;                     // ID tự tăng
+  user_id?: number;                // Khóa ngoại đến user
+  recipient_name: string;          // Tên người nhận
+  phone: string;                   // Số điện thoại
+  detail_address: string;          // Số nhà, tên đường
+  ward_name: string;               // Xã / Phường
+  district_name?: string;          // Quận / Huyện
+  province_name?: string;          // Tỉnh / Thành phố
+  default?: boolean;               // Có phải địa chỉ mặc định không
+  create_at?: string;              // Ngày tạo (ISO string khi trả từ API)
+  update_at?: string;              // Ngày cập nhật (ISO string)
 }

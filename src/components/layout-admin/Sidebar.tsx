@@ -18,7 +18,9 @@ const MENU_ITEMS = [
   { name: "Loại sản phẩm", icon: faShoppingBag, path: "/admin/categories" },
   { name: "Người dùng", icon: faUsers, path: "/admin/users" },
   { name: "Đơn hàng", icon: faCog, path: "/admin/orders" },
-    { name: "Giảm giá", icon: faCog, path: "/admin/coupons" },
+  { name: "Giảm giá", icon: faCog, path: "/admin/coupons" },
+  { name: "Thống kê", icon: faCog, path: "/admin/statistics" },
+
 ];
 
 export default function Sidebar() {
@@ -38,9 +40,8 @@ export default function Sidebar() {
     >
       {/* Toggle Button */}
       <div
-        className={`flex items-center p-4 transition-all duration-300 h-16 border-b border-gray-200 ${
-          isOpen ? "justify-between" : "justify-center"
-        }`}
+        className={`flex items-center p-4 transition-all duration-300 h-16 border-b border-gray-200 ${isOpen ? "justify-between" : "justify-center"
+          }`}
       >
         {isOpen && <span className="text-lg font-bold">Admin</span>}
         <button
@@ -67,10 +68,9 @@ export default function Sidebar() {
                 onClick={() => handleNavigate(item.path)}
                 title={!isOpen ? item.name : ""}
                 className={`relative flex items-center gap-4 w-full px-4 py-3 my-1 rounded-lg transition
-                  ${
-                    isActive
-                      ? "bg-blue-100 text-blue-600 font-medium"
-                      : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                  ${isActive
+                    ? "bg-blue-100 text-blue-600 font-medium"
+                    : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
                   }
                   ${isOpen ? "justify-start" : "justify-center"}
                 `}

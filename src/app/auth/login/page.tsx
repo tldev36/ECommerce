@@ -23,7 +23,19 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams?.get("redirect") ?? "/customer/home";
-  const { setCartFromServer } = useCart();
+  const { setCartFromServer, fetchUser, user, isLoggedIn } = useCart();
+  
+  useEffect(() => {
+    console.log("=== CART PAGE DEBUG ===");
+    console.log("isLoggedIn:", isLoggedIn);
+    console.log("user:", user);
+
+    // Kiểm tra cookie `token` phía client (chỉ để debug)
+    console.log(
+      "token cookie (client):",
+      document.cookie.includes("token") ? "✅ Có token" : "❌ Không có token"
+    );
+  }, [isLoggedIn, user]);
 
   // ✅ Kiểm tra nếu đã login => redirect
   useEffect(() => {
@@ -60,6 +72,8 @@ export default function LoginPage() {
         setError("root", { message: "Email hoặc mật khẩu không đúng!" });
         return;
       }
+
+      await fetchUser();
 
       const loginData = await res.json();
       const role = loginData?.user?.role;

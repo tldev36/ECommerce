@@ -13,12 +13,12 @@ import ShippingFeeCalculator from "@/components/checkout/ShippingFeeCalculator";
 import { ZaloPayCreateOrderResponse } from "@/types/ZaloPayCreateOrderResponse";
 import { MoMoCreatePaymentResponse } from "@/types/MoMoCreatePaymentResponse";
 import type { PaymentMethod } from "@/types/order";
+import { formatFullAddress } from "@/lib/formatFullAddress";
 
 export default function CheckoutPage() {
-  const { cart, clearCart, isLoggedIn, user } = useCart();
+  const { cart, clearCart, isLoggedIn, user, loadingUser } = useCart();
   const router = useRouter();
 
-  // 🧩 State quản lý
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -28,71 +28,36 @@ export default function CheckoutPage() {
   const [couponCode, setCouponCode] = useState("");
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [shippingFee, setShippingFee] = useState(0);
-
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
-
-  const [paymentQR, setPaymentQR] = useState<string | null>(null);
-  const [qrLoading, setQrLoading] = useState(false);
-
-
   const [showInvoice, setShowInvoice] = useState(false);
   const [orderData, setOrderData] = useState<any>(null);
 
-  const selectedAddr = addresses.find(a => a.id === selectedAddress);
+  const selectedAddr = addresses.find((a) => a.id === selectedAddress);
 
-  // 🧮 Tính tổng tiền
+  // 🧮 Tổng tiền
   const total = useMemo(
     () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [cart]
   );
 
-  const finalTotal = useMemo(() => Math.max(total - discount + shippingFee, 0), [
-    total,
-    discount,
-    shippingFee,
-  ]);
+  const finalTotal = useMemo(
+    () => Math.max(total - discount + shippingFee, 0),
+    [total, discount, shippingFee]
+  );
 
-  // 🧩 Lấy thông tin user ngay khi load trang
-  // useEffect(() => {
-  //   const fetchUser = async () => {
-  //     try {
-  //       const res = await fetch("/api/auth/me", { credentials: "include" });
-  //       const data = await res.json();
-
-  //       if (res.ok && data.user) {
-  //         console.log("👤 User loaded:", data.user);
-  //         // Nếu context chưa có user, có thể cập nhật tạm ở đây
-  //         // (tuỳ cách bạn lưu user trong CartContext)
-  //       } else {
-  //         console.warn("⚠️ Không tìm thấy user hoặc chưa đăng nhập");
-  //       }
-  //     } catch (err) {
-  //       console.error("❌ Lỗi khi lấy thông tin user:", err);
-  //     }
-  //   };
-
-  //   fetchUser();
-  // }, []);
-
-
-  // 🧩 Log kiểm tra user & isLoggedIn
+  // 🧩 Thêm log để xem tình trạng đăng nhập và dữ liệu
   useEffect(() => {
-
-    fetch("/api/auth/me", { credentials: "include" })
-      .then(r => r.json())
-      .then(console.log);
-    console.log("=== CHECKOUT DEBUG ===");
+    console.log("=== CART PAGE DEBUG ===");
     console.log("isLoggedIn:", isLoggedIn);
     console.log("user:", user);
     console.log("cart:", cart);
+
+    // Kiểm tra cookie `token` phía client (chỉ để debug)
     console.log(
       "token cookie (client):",
       document.cookie.includes("token") ? "✅ Có token" : "❌ Không có token"
     );
-
-    
   }, [isLoggedIn, user, cart]);
-
 
   // 📦 Lấy danh sách địa chỉ
   useEffect(() => {
@@ -108,7 +73,6 @@ export default function CheckoutPage() {
         console.error("Lỗi fetch địa chỉ:", err);
       }
     };
-    console.log("🛒 Danh sách giỏ hàng hiện tại:", cart);
     fetchAddresses();
   }, []);
 
@@ -120,39 +84,28 @@ export default function CheckoutPage() {
     }
   }, [addresses, selectedAddress]);
 
-  const handleDeleteAddress = (id: number) => {
-    setAddresses(prev => prev.filter(addr => addr.id !== id));
-    if (selectedAddress === id) setSelectedAddress(null);
-    setEditingAddress(null);
-    setShowForm(false);
-  };
-
-
-  // ➕ Thêm địa chỉ
+  // ➕ Thêm / Sửa / Xoá địa chỉ
   const handleAddAddress = (newAddress: Address) => {
-    const newId =
-      addresses.length > 0
-        ? Math.max(...addresses.map((a) => a.id || 0)) + 1
-        : 1;
-    setAddresses([...addresses, { ...newAddress, id: newId }]);
+    setAddresses((prev) => [...prev, newAddress]);
     setShowForm(false);
   };
 
-  // 📝 Cập nhật địa chỉ
   const handleUpdateAddress = (updated: Address) => {
-    setAddresses((prev) =>
-      prev.map((a) => (a.id === updated.id ? updated : a))
-    );
+    setAddresses((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
     setEditingAddress(null);
     setShowForm(false);
+  };
+
+  const handleDeleteAddress = (id: number) => {
+    setAddresses((prev) => prev.filter((a) => a.id !== id));
+    if (selectedAddress === id) setSelectedAddress(null);
   };
 
   // 🎟️ Áp dụng mã giảm giá
   const handleApplyCoupon = async (code: string) => {
     try {
       setCouponLoading(true);
-      const res = await axios.post<CouponValidationResponse>("/api/coupons/validate", { code });
-
+      const res = await axios.post<{ valid: boolean; message?: string; discount_percent?: number; discount_amount?: number }>("/api/coupons/validate", { code });
       const result = res.data;
 
       if (!result.valid) {
@@ -162,274 +115,198 @@ export default function CheckoutPage() {
 
       if (result.discount_percent) {
         setDiscount((total * result.discount_percent) / 100);
-        setCouponCode(code);
-        alert(`🎉 Áp dụng mã ${code}: giảm ${result.discount_percent}%`);
       } else if (result.discount_amount) {
         setDiscount(result.discount_amount);
-        setCouponCode(code);
-        alert(
-          `🎉 Áp dụng mã ${code}: giảm ${result.discount_amount.toLocaleString()}₫`
-        );
-      } else {
-        alert("❌ Mã không có giá trị giảm hợp lệ!");
       }
+      setCouponCode(code);
     } catch (err) {
       console.error("Lỗi khi áp dụng mã:", err);
-      alert("⚠️ Không thể áp dụng mã giảm giá. Vui lòng thử lại.");
+      alert("⚠️ Không thể áp dụng mã giảm giá!");
     } finally {
       setCouponLoading(false);
     }
   };
 
-  // dữ liệu truyền cho modal hoá đơn
-  // const orderDataFromTO = {
-  //   user_id: user?.id,
-  //   shipping_address_id: selectedAddress,
-  //   items: cart,
-  //   total_amount: total + shippingFee,
-  //   payment_method: paymentMethod,
-  // };
-
-  // 🛍️ Xác nhận đặt hàng
+  // 🛍️ Đặt hàng
   const handlePlaceOrder = async () => {
     if (!isLoggedIn || !user) {
       alert("⚠️ Bạn cần đăng nhập trước khi đặt hàng!");
       return;
     }
-
-    if (!selectedAddress) {
+    if (!selectedAddr) {
       alert("⚠️ Vui lòng chọn địa chỉ giao hàng!");
       return;
     }
 
     const orderInfo = {
       user_id: user.id,
-      shipping_address_id: selectedAddress,
+      shipping_address_id: selectedAddr.id,
       items: cart,
-      total_amount: total + shippingFee,
+      total_amount: finalTotal,
       payment_method: paymentMethod,
+      ship_amount: shippingFee,
+      coupon_amount: discount
     };
 
-    const addr = selectedAddr;
+    // MoMo
+    // if (paymentMethod === "momo") {
+    //   try {
+    //     const momoData = {
+    //       amount: finalTotal,
+    //       orderId: `ORD-${Date.now()}`,
+    //       orderInfo: `Thanh toán đơn hàng của ${user.full_name || user.email}`,
+    //       userInfo: {
+    //         id: user.id,
+    //         name: user.full_name,
+    //         email: user.email,
+    //         phone: user.phone,
+    //       },
+    //       deliveryInfo: {
+    //         address: selectedAddr.detail_address,
+    //         ward: selectedAddr.ward_name,
+    //       },
+    //       items: cart,
+    //     };
 
-    const parts = addr?.province_district_ward?.split(",").map(p => p.trim()) || [];
+    //     const res = await axios.post<MoMoCreatePaymentResponse>(
+    //       "/api/momo/create",
+    //       momoData
+    //     );
 
-    // Giả sử parts = ["Phường Phú Cường", "Thành phố Thủ Dầu Một", "Bình Dương"]
-    const ward_name = parts[0] || "";
-    const district_name = parts[1] || "";
-    const province_name = parts[2] || "";
+    //     if (res.data.payUrl) {
+    //       window.location.href = res.data.payUrl;
+    //     } else alert("❌ MoMo không trả về payUrl.");
+    //   } catch (err) {
+    //     console.error("Lỗi tạo thanh toán MoMo:", err);
+    //     alert("⚠️ Không thể tạo thanh toán MoMo.");
+    //   }
+    //   return;
+    // }
 
-
-    const orderInfoghn = {
-      user_id: user.id,
-      shipping_address_id: addr?.id,
-      shipping_address: {
-        name: addr?.recipient_name,
-        phone: addr?.phone,
-        address: addr?.detail_address, // ví dụ: "123 Đường ABC"
-        ward_code: ward_name,    // mã phường GHN (vd: 440108)
-        district_id: district_name, // mã quận GHN (vd: 1501)
-      },
-      items: cart.map((item) => ({
-        product_id: item.product_id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        weight: item.unit || 200, // gram
-        discount_percent: item.dicount_percent || 0,
-      })),
-      total_amount: total + shippingFee,
-      payment_method: paymentMethod,
-      coupon_id: couponCode || null,
-    };
-
-    // Nếu chọn MoMo
-    if (paymentMethod === "momo") {
+    // ZaloPay
+    if (paymentMethod === "zalopay") {
       try {
-        const momoData = {
-          amount: finalTotal,
-          orderId: `ORDER-${Date.now()}`,
-          orderInfo: `Thanh toán đơn hàng của ${user.full_name || user.email}`,
-          items: cart.map((item) => ({
-            id: item.product_id,
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-          })),
-          userInfo: {
-            id: user.id,
-            name: user.full_name,
-            email: user.email,
-            phone: user.phone,
-          },
-          deliveryInfo: {
-            address: selectedAddr?.detail_address,
-            ward: selectedAddr?.province_district_ward,
-          },
-        };
-
-        const res = await axios.post<MoMoCreatePaymentResponse>("/api/momo/create", momoData, {
-          headers: { "Content-Type": "application/json" },
-        });
-
-        if (res.data.payUrl) {
-          window.location.href = res.data.payUrl;
-        } else {
-          alert("❌ MoMo không trả về payUrl, vui lòng kiểm tra log.");
-        }
+        const res = await axios.post<ZaloPayCreateOrderResponse>(
+          "/api/zalopay/create",
+          orderInfo
+        );
+        const data = res.data;
+        if (data.return_code === 1 && data.order_url)
+          window.location.href = data.order_url;
+        else alert("❌ Không thể tạo QR thanh toán ZaloPay");
       } catch (err) {
-        console.error("❌ Lỗi tạo thanh toán MoMo:", err);
-        alert("⚠️ Không thể tạo thanh toán MoMo, xem log console để biết chi tiết.");
+        console.error("Lỗi tạo đơn ZaloPay:", err);
+        alert("⚠️ Lỗi khi tạo đơn ZaloPay");
       }
       return;
     }
 
-
-
-    // Nếu chọn ZaloPay
-    if (paymentMethod === "zalopay") {
-      try {
-        console.log("💰 Gửi orderData sang ZaloPay:", orderInfo);
-        const res = await axios.post<ZaloPayCreateOrderResponse>(
-          "/api/zalopay/create",
-          orderInfo,
-          { headers: { "Content-Type": "application/json" } }
-        );
-
-        const data = res.data;
-        console.log("💳 ZaloPay response:", data);
-
-        if (data.return_code === 1 && data.order_url) {
-          // 🔹 Chuyển hướng sang ZaloPay để thanh toán
-          window.location.href = data.order_url;
-        } else {
-          alert(data.return_message || "❌ Không thể tạo QR thanh toán ZaloPay");
-        }
-      } catch (error) {
-        console.error("❌ Lỗi tạo đơn ZaloPay:", error);
-        alert("⚠️ Đã xảy ra lỗi khi tạo đơn thanh toán ZaloPay");
-      }
-      return; // Không tiếp tục đặt COD
-    }
-
-    // Nếu là COD hoặc các phương thức khác
+    // 🧾 Xử lý đơn hàng COD
     try {
-      const res = await axios.post("/api/orders", orderInfoghn);
-      const { success, order } = res.data as { success: boolean; order: any };
+      // Định nghĩa kiểu phản hồi từ API
+      interface OrderResponse {
+        success: boolean;
+        message?: string;
+        order?: any; // hoặc bạn có thể định nghĩa rõ kiểu Order nếu đã có interface
+      }
 
-      if (success) {
-        alert(`🎉 Đặt hàng thành công! Mã đơn: ${order.order_code}`);
+      const res = await axios.post<OrderResponse>("/api/orders", orderInfo, {
+        withCredentials: true, // nếu bạn dùng cookie token cho user
+      });
+
+      if (res.data.success) {
+        alert("🎉 Đặt hàng thành công!");
         clearCart();
         router.push("/customer/home");
       } else {
-        alert("❌ Lỗi khi tạo đơn hàng!");
+        console.error("❌ API trả lỗi:", res.data.message);
+        alert(res.data.message || "❌ Lỗi khi tạo đơn hàng!");
       }
-    } catch (error) {
-      console.error(error);
-      alert("⚠️ Lỗi khi kết nối đến server!");
+    } catch (err: any) {
+      console.error("⚠️ Lỗi kết nối server:", err.response?.data || err.message);
+      alert("⚠️ Không thể kết nối đến server! Vui lòng thử lại sau.");
     }
+
   };
 
-
-
-  // 🧮 Tính tổng cân nặng (gram)
+  // 🧮 Tổng trọng lượng (gram)
   const totalWeight = useMemo(() => {
     return cart.reduce((sum, item) => {
       let w = 0;
-
       if (typeof item.unit === "string") {
-        // Lấy phần số (vd: "5000gram" -> 5000, "2.5kg" -> 2.5)
         const value = parseFloat(item.unit);
-        const lower = item.unit.toLowerCase();
-
-        if (lower.includes("kg")) {
-          w = value * 1000; // đổi kg -> gram
-        } else if (lower.includes("g")) {
-          w = value; // gram thì giữ nguyên
-        } else {
-          // Nếu không có đơn vị, giả định là gram
-          w = value;
-        }
-      } else if (typeof item.unit === "number") {
-        w = item.unit; // Nếu DB là số rồi thì giữ nguyên
-      }
-
+        if (item.unit.toLowerCase().includes("kg")) w = value * 1000;
+        else if (item.unit.toLowerCase().includes("g")) w = value;
+      } else if (typeof item.unit === "number") w = item.unit;
       return sum + w * (item.quantity || 1);
     }, 0);
   }, [cart]);
 
+  // load user
+  if (loadingUser) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-gray-600">
+        ⏳ Đang tải thông tin người dùng...
+      </div>
+    );
+  }
+
+  //
+  // 🧩 Thêm log để xem tình trạng đăng nhập và dữ liệu
   // useEffect(() => {
-  //   if (user && selectedAddress && cart.length > 0) {
-  //     setOrderData({
-  //       user_id: user.id,
-  //       shipping_address_id: selectedAddress,
-  //       items: cart,
-  //       total_amount: total + shippingFee,
-  //       payment_method: paymentMethod,
-  //     });
-  //   }
-  // }, [user, selectedAddress, cart, total, shippingFee, paymentMethod]);
+  //   console.log("=== CART PAGE DEBUG ===");
+  //   console.log("isLoggedIn:", isLoggedIn);
+  //   console.log("user:", user);
+  //   console.log("cart:", cart);
+
+  //   // Kiểm tra cookie `token` phía client (chỉ để debug)
+  //   console.log(
+  //     "token cookie (client):",
+  //     document.cookie.includes("token") ? "✅ Có token" : "❌ Không có token"
+  //   );
+  // }, [isLoggedIn, user, cart]);
 
   return (
     <div className="mt-20 max-w-5xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">
-        🛒 Thanh toán
-      </h1>
+      <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">🛒 Thanh toán</h1>
 
       <div className="grid md:grid-cols-2 gap-8">
-        {/* 🧩 Cột trái - Địa chỉ */}
+        {/* 📍 Địa chỉ */}
         <div className="bg-white shadow-md rounded-2xl p-6">
-          <h2 className="text-lg font-semibold mb-4 text-gray-700">
-            📍 Địa chỉ giao hàng
-          </h2>
+          <h2 className="text-lg font-semibold mb-4 text-gray-700">📍 Địa chỉ giao hàng</h2>
 
           {addresses.length === 0 ? (
-            <p className="text-gray-500 italic mb-3">
-              Chưa có địa chỉ. Hãy thêm mới!
-            </p>
+            <p className="text-gray-500 italic mb-3">Chưa có địa chỉ. Hãy thêm mới!</p>
           ) : (
             <ul className="space-y-4">
-              {addresses.map((addr) => {
-                // đảm bảo id luôn có kiểu number
-                const id = addr.id ?? 0;
-
-                return (
-                  <li
-                    key={id}
-                    onClick={() => setSelectedAddress(id)}
-                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-xl cursor-pointer transition 
-              ${selectedAddress === id
-                        ? "border-green-600 bg-green-50"
-                        : "border-gray-200 hover:border-green-400"
-                      }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="radio"
-                        name="address"
-                        className="mt-1 cursor-pointer"
-                        checked={selectedAddress === id}
-                        onChange={() => setSelectedAddress(id)}
-                      />
-                      <div>
-                        <p className="font-medium text-gray-800">
-                          {addr.recipient_name} - {addr.phone}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {addr.detail_address}, {addr.province_district_ward}{" "}
-                          {addr.default && (
-                            <span className="ml-2 text-xs text-white bg-green-600 px-2 py-0.5 rounded-full">
-                              Mặc định
-                            </span>
-                          )}
-                        </p>
-                      </div>
+              {addresses.map((addr) => (
+                <li
+                  key={addr.id}
+                  onClick={() => setSelectedAddress(addr.id!)}
+                  className={`p-4 border rounded-xl cursor-pointer transition ${selectedAddress === addr.id
+                    ? "border-green-600 bg-green-50"
+                    : "border-gray-200 hover:border-green-400"
+                    }`}
+                >
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="font-medium text-gray-800">
+                        {addr.recipient_name} - {addr.phone}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {addr.detail_address}, {addr.ward_name}, {addr.district_name},{" "}
+                        {addr.province_name}
+                        {addr.default && (
+                          <span className="ml-2 text-xs text-white bg-green-600 px-2 py-0.5 rounded-full">
+                            Mặc định
+                          </span>
+                        )}
+                      </p>
                     </div>
-
                     <button
                       type="button"
                       onClick={(e) => {
-                        e.stopPropagation(); // tránh chọn radio khi bấm "Sửa"
+                        e.stopPropagation();
                         setEditingAddress(addr);
                         setShowForm(true);
                       }}
@@ -437,9 +314,9 @@ export default function CheckoutPage() {
                     >
                       📝 Sửa
                     </button>
-                  </li>
-                );
-              })}
+                  </div>
+                </li>
+              ))}
             </ul>
           )}
 
@@ -463,31 +340,26 @@ export default function CheckoutPage() {
           )}
         </div>
 
-
-        {/* 🧩 Cột phải - Giỏ hàng */}
+        {/* 🛍️ Giỏ hàng */}
         <div className="bg-white shadow-md rounded-2xl p-6">
-          <h2 className="text-lg font-semibold mb-4 text-gray-700">
-            🛍️ Giỏ hàng của bạn
-          </h2>
+          <h2 className="text-lg font-semibold mb-4 text-gray-700">🛍️ Giỏ hàng của bạn</h2>
 
-
-          {/* Sau khi người dùng chọn địa chỉ */}
           <ShippingFeeCalculator
-            key={`${selectedAddress}-${addresses.length}-${selectedAddr?.province_district_ward || ""}`}
-            customerAddress={selectedAddr?.province_district_ward || ""}
+            key={`${selectedAddr?.id || "no-address"}`}
+            customerAddress={formatFullAddress({
+              ward_name: selectedAddr?.ward_name,
+              district_name: selectedAddr?.district_name,
+              province_name: selectedAddr?.province_name,
+            })}
             weight={totalWeight}
             onFeeChange={(fee) => setShippingFee(fee)}
           />
 
 
-          {/* 🛒 Danh sách sản phẩm */}
 
           <ul className="divide-y">
             {cart.map((item) => (
-              <li
-                key={item.product_id}
-                className="flex justify-between py-3 text-gray-700"
-              >
+              <li key={item.product_id} className="flex justify-between py-3 text-gray-700">
                 <span>
                   {item.name}{" "}
                   <span className="text-sm text-gray-500">x {item.quantity}</span>
@@ -499,10 +371,8 @@ export default function CheckoutPage() {
             ))}
           </ul>
 
-          {/* 🎟️ Nhập mã giảm giá */}
           <CouponInput onApply={handleApplyCoupon} loading={couponLoading} />
 
-          {/* 🧮 Tổng tiền */}
           <div className="mt-6 border-t pt-4 space-y-2 font-bold text-lg">
             <div className="flex justify-between">
               <span>Tạm tính:</span>
@@ -522,11 +392,7 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* 💳 Chọn phương thức thanh toán */}
-          <PaymentMethodSelector
-            selectedMethod={paymentMethod}
-            onChange={setPaymentMethod}
-          />
+          <PaymentMethodSelector selectedMethod={paymentMethod} onChange={setPaymentMethod} />
 
           <button
             onClick={handlePlaceOrder}
@@ -536,7 +402,6 @@ export default function CheckoutPage() {
             {loading ? "⏳ Đang xử lý..." : "Xác nhận đặt hàng"}
           </button>
 
-          {/* 🧾 Hiển thị modal phiếu bán hàng */}
           <InvoiceModal
             isOpen={showInvoice}
             onClose={() => setShowInvoice(false)}
