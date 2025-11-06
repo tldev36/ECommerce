@@ -19,20 +19,31 @@ export async function POST(req: Request) {
       ship_amount,
     } = body;
 
-    if (!user_id || !shipping_address_id || !items?.length) {
+    // 🧩 Kiểm tra dữ liệu đầu vào
+    if (!user_id || !shipping_address_id || !items || items.length === 0) {
       return NextResponse.json(
         { error: "Thiếu dữ liệu đầu vào (user_id, địa chỉ hoặc giỏ hàng)." },
         { status: 400 }
       );
     }
 
-    // 🏠 Lấy địa chỉ giao hàng
+    // 🏠 Lấy địa chỉ giao hàng trong DB
     const address = await prisma.shipping_addresses.findUnique({
       where: { id: Number(shipping_address_id) },
     });
-    if (!address) return NextResponse.json({ error: "Không tìm thấy địa chỉ giao hàng." }, { status: 404 });
 
-    const orderCode = `OD${Date.now().toString().slice(-6)}`;
+    if (!address) {
+      return NextResponse.json(
+        { error: "Không tìm thấy địa chỉ giao hàng." },
+        { status: 404 }
+      );
+    }
+
+    // 🧮 Tạo mã đơn hàng
+    const now = Date.now().toString();
+    const orderCode = `OD${now.slice(-6)}`;
+
+    // 📦 Gộp địa chỉ để lưu
     const address_detail = `${address.recipient_name}-${address.phone}-${address.detail_address},${address.ward_name},${address.district_name},${address.province_name}`;
 
     // 🚀 Tạo đơn hàng trong DB
@@ -51,57 +62,75 @@ export async function POST(req: Request) {
       },
     });
 
-    // 🧾 Tạo order_items
-    const orderItemsData = items.map((item: Order_Item) => ({
-      order_id: order.id,
-      product_id: Number(item.product_id),
-      quantity: Number(item.quantity),
-      price: Number(item.price),
-      total_price: Number(item.price) * Number(item.quantity),
-    }));
-    await prisma.order_items.createMany({ data: orderItemsData });
+    // 🧾 Chuẩn bị dữ liệu cho order_items
+    const orderItemsData = items.map((item: Order_Item) => {
+      const price = Number(item.price);
+      const quantity = Number(item.quantity);
+      const total_price = price * quantity;
+      return {
+        order_id: order.id,
+        product_id: Number(item.product_id),
+        quantity,
+        price,
+        total_price,
+      };
+    });
 
-    // 🔁 Lấy lại đơn hàng kèm sản phẩm
+    // 💾 Thêm danh sách sản phẩm vào order_items
+    await prisma.order_items.createMany({
+      data: orderItemsData,
+    });
+
+    // 📦 Lấy lại thông tin đơn hàng kèm chi tiết sản phẩm
     const fullOrder = await prisma.orders.findUnique({
       where: { id: order.id },
-      include: { order_items: { include: { product: true } } },
+      include: {
+        order_items: {
+          include: {
+            product: true,
+          },
+        },
+      },
     });
-    if (!fullOrder) throw new Error("Không thể lấy lại dữ liệu đơn hàng.");
 
-    // 📦 Tạo payload GHN
-    const [recipient_name, recipient_phone, ...addressParts] = address_detail.split("-");
+    if (!fullOrder) throw new Error("Không thể lấy lại dữ liệu đơn hàng sau khi tạo.");
+
+    // 🧭 Parse địa chỉ để gửi GHN (tách theo cú pháp bạn đã lưu)
+    const [recipient_name, recipient_phone, ...addressParts] =
+      address_detail.split("-");
     const toAddress = addressParts.join("-").trim();
-    
+
+    // 📦 Payload GHN
     const ghnPayload = {
       shop_id: GHN_SHOP_ID,
-      payment_type_id: 2,
+      payment_type_id: 2, // 2: người nhận trả phí ship
       note: `Giao đơn hàng #${order.order_code}`,
       required_note: "KHONGCHOXEMHANG",
       return_phone: "0967123456",
       return_address: "123 QL13, Phường Hiệp An, Thủ Dầu Một, Bình Dương",
-      return_district_id: 1482,
+      return_district_id: 1482, // Thành phố Thủ Dầu Một
       to_name: recipient_name || "Khách hàng",
       to_phone: recipient_phone || "0000000000",
       to_address: toAddress,
-      to_ward_code: "90737",
+      to_ward_code: "90737", // Phường Hiệp An
       to_district_id: 1482,
       cod_amount: Math.round(Number(order.amount)),
       weight: 500,
       length: 30,
       width: 20,
       height: 10,
-      service_type_id: 2,
+      service_type_id: 2, // Hàng nhẹ
       items: fullOrder.order_items.map((item) => ({
         name: item.product?.name || "Sản phẩm",
         quantity: item.quantity,
         price: Math.round(Number(item.price)),
-        weight: 200,
+        weight: 200, // gram/sp
       })),
     };
 
     console.log("📦 GHN request payload:", ghnPayload);
 
-    // 🚀 Gửi yêu cầu GHN
+    // 🚀 Gửi yêu cầu tạo đơn GHN
     const ghnRes = await fetch(`${GHN_BASE_URL}/v2/shipping-order/create`, {
       method: "POST",
       headers: {
@@ -115,22 +144,9 @@ export async function POST(req: Request) {
     const ghnData = await ghnRes.json();
     console.log("📨 GHN response:", ghnData);
 
-    // ⚡ Nếu GHN trả về thành công → lưu vào DB
-    if (ghnData?.data) {
-      await prisma.orders.update({
-        where: { id: order.id },
-        data: {
-          order_code: ghnData.data.order_code,
-          // ghn_expected_date: new Date(ghnData.data.expected_delivery_time),
-          ship_amount: ghnData.data.total_fee || 0,
-          status: "shipping",
-        },
-      });
-    }
-
     return NextResponse.json({
       success: true,
-      message: "Tạo đơn hàng và gửi GHN thành công!",
+      message: "Tạo đơn hàng thành công!",
       order: fullOrder,
       ghn_response: ghnData,
     });

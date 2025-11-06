@@ -3,12 +3,16 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { ZALO_CONFIG } from "@/config";
 import { prisma } from "@/lib/prisma";
+import { Order_Item } from "@/types/order_item";
 
-// 🔐 Hàm tạo chữ ký MAC chuẩn ZaloPay
+const GHN_BASE_URL = process.env.GHN_BASE_URL!;
+const GHN_TOKEN = process.env.GHN_TOKEN!;
+const GHN_SHOP_ID = Number(process.env.GHN_SHOP_ID!);
+
+// 🔐 Tạo MAC chuẩn ZaloPay
 function generateMac(key: string, data: string) {
   return crypto.createHmac("sha256", key).update(data).digest("hex");
 }
-
 
 export async function POST(req: Request) {
   try {
@@ -18,129 +22,192 @@ export async function POST(req: Request) {
       total_amount,
       payment_method,
       shipping_address_id,
-      coupon_id,
+      coupon_amount,
+      ship_amount,
     } = await req.json();
 
-    if (!items?.length || !user_id || !payment_method) {
+    if (!items?.length || !user_id || !payment_method || !shipping_address_id) {
       return NextResponse.json(
-        { error: "Thiếu dữ liệu đơn hàng" },
+        { error: "Thiếu dữ liệu đầu vào (user_id, items, địa chỉ hoặc phương thức thanh toán)" },
         { status: 400 }
       );
     }
 
-    // ⚙️ 1️⃣ Tạo mã order_code ngắn gọn (~10 ký tự) và dùng làm app_trans_id
+    // 🏠 Lấy địa chỉ giao hàng từ DB
+    const address = await prisma.shipping_addresses.findUnique({
+      where: { id: Number(shipping_address_id) },
+    });
+    if (!address) {
+      return NextResponse.json({ error: "Không tìm thấy địa chỉ giao hàng" }, { status: 404 });
+    }
+
+    // 🧮 Tạo mã order
     const orderCode = `ORD${Math.random().toString(36).substring(2, 8).toUpperCase()}${Date.now()
       .toString()
-      .slice(-2)}`; // ví dụ: ORDAB12CD34
+      .slice(-2)}`;
+    const address_detail = `${address.recipient_name}-${address.phone}-${address.detail_address},${address.ward_name},${address.district_name},${address.province_name}`;
 
 
-    // 🌏 Lấy thời gian theo GMT+7
+
     const now = new Date();
-    const yy = String(now.getFullYear()).slice(2);          // 25
-    const mm = String(now.getMonth() + 1).padStart(2, "0"); // 11
-    const dd = String(now.getDate()).padStart(2, "0");      // 01
-    const yyMMdd = `${yy}${mm}${dd}`;
-    
+    const yyMMdd = `${String(now.getFullYear()).slice(2)}${String(
+      now.getMonth() + 1
+    ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
     const app_trans_id = `${yyMMdd}_${orderCode}`;
-
     const app_time = Date.now();
     const app_user = user_id.toString();
 
-    console.log("🆕 user_id:", app_user);
-
-    // 🔹 embed_data và item phải là JSON string
     const embed_data = JSON.stringify({
       redirecturl: "http://localhost:3000/payment-callback/zalopay",
-      preferred_payment_method: ["zalopay_wallet"], // chỉ hiển thị QR ZaloPay
+      preferred_payment_method: ["zalopay_wallet"],
     });
     const item_str = JSON.stringify(items);
 
-    const amountzalo = Number(total_amount);
+    const amountNumber = Number(total_amount);
 
-    // 🔹 MAC = HMAC_SHA256(app_id|app_trans_id|app_user|amount|app_time|embed_data|item)
-    const mac_input = `${ZALO_CONFIG.APP_ID}|${app_trans_id}|${app_user}|${amountzalo}|${app_time}|${embed_data}|${item_str}`;
+    const mac_input = `${ZALO_CONFIG.APP_ID}|${app_trans_id}|${app_user}|${amountNumber}|${app_time}|${embed_data}|${item_str}`;
     const mac = generateMac(ZALO_CONFIG.KEY1, mac_input);
 
-    // 🔹 Payload gửi ZaloPay
+    // 🚀 Tạo đơn hàng trong DB
+    const order = await prisma.orders.create({
+      data: {
+        order_code: orderCode,
+        user_id: Number(user_id),
+        coupon_amount,
+        ship_amount,
+        amount: amountNumber,
+        payment_method,
+        status: payment_method === "zalopay" ? "pending" : "waiting_payment",
+        shipping_address: address_detail,
+        ward_address: address.ward_name,
+        district_address: address.district_name,
+      },
+    });
+
+    // 🧾 Tạo order_items
+    const orderItemsData = items.map((item: Order_Item) => ({
+      order_id: order.id,
+      product_id: Number(item.product_id),
+      quantity: Number(item.quantity),
+      price: Number(item.price),
+      total_price: Number(item.price) * Number(item.quantity),
+    }));
+    await prisma.order_items.createMany({ data: orderItemsData });
+
+    console.log("✅ Đơn hàng đã tạo trong DB:", order.order_code);
+
+
+    // 🔁 Lấy lại đơn hàng kèm sản phẩm
+    const fullOrder = await prisma.orders.findUnique({
+      where: { id: order.id },
+      include: { order_items: { include: { product: true } } },
+    });
+    if (!fullOrder) throw new Error("Không thể lấy lại dữ liệu đơn hàng.");
+
+    // 🧭 Parse địa chỉ để gửi GHN
+    const [recipient_name, recipient_phone, ...addressParts] =
+      address_detail.split("-");
+    const toAddress = addressParts.join("-").trim();
+
+    // 📦 Payload GHN
+    const ghnPayload = {
+      shop_id: GHN_SHOP_ID,
+      payment_type_id: 1,
+      note: `Giao đơn hàng #${order.order_code}`,
+      required_note: "KHONGCHOXEMHANG",
+      return_phone: "0967123456",
+      return_address: "123 QL13, Phường Hiệp An, Thủ Dầu Một, Bình Dương",
+      return_district_id: 1482,
+      to_name: recipient_name || "Khách hàng",
+      to_phone: recipient_phone || "0000000000",
+      to_address: toAddress,
+      to_ward_code: "90737",
+      to_district_id: 1482,
+      cod_amount: 0,
+      weight: 500,
+      length: 30,
+      width: 20,
+      height: 10,
+      service_type_id: 2,
+      items: fullOrder.order_items.map((item) => ({
+        name: item.product?.name || "Sản phẩm",
+        quantity: item.quantity,
+        price: Math.round(Number(item.price)),
+        weight: 200,
+      })),
+    };
+
+    // 🚀 Gửi yêu cầu GHN
+    const ghnRes = await fetch(`${GHN_BASE_URL}/v2/shipping-order/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Token: GHN_TOKEN,
+        ShopId: GHN_SHOP_ID.toString(),
+      },
+      body: JSON.stringify(ghnPayload),
+    });
+
+    const ghnData = await ghnRes.json();
+    console.log("📨 GHN response:", ghnData);
+
+    // 🧾 Lưu thông tin GHN vào DB nếu thành công
+    if (ghnData?.data) {
+      await prisma.orders.update({
+        where: { id: order.id },
+        data: {
+          order_code: ghnData.data.order_code,
+          // ghn_expected_date: new Date(ghnData.data.expected_delivery_time),
+          ship_amount: ghnData.data.total_fee || 0,
+        },
+      });
+    }
+
+    // 🔹 Tạo đơn thanh toán trên ZaloPay
     const orderPayload = {
       app_id: ZALO_CONFIG.APP_ID,
       app_user,
-      app_trans_id, // chính là orderCode
+      app_trans_id,
       app_time,
-      amount: total_amount,
+      amount: amountNumber,
       description: `Thanh toán đơn hàng #${orderCode}`,
       embed_data,
       item: item_str,
       mac,
       callback_url: ZALO_CONFIG.CALLBACK_URL,
       bank_code: "",
-      expire_duration_seconds: 3600, // 1 giờ
+      expire_duration_seconds: 3600,
     };
 
-    console.log("📤 Payload gửi ZaloPay:", orderPayload);
-
-    // 🔹 Gửi yêu cầu đến ZaloPay
     const zaloRes = await fetch(ZALO_CONFIG.CREATE_ORDER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(orderPayload),
     });
+    const zaloData = await zaloRes.json();
+    console.log("💰 ZaloPay response:", zaloData);
 
-    const result = await zaloRes.json();
-    console.log("🔍 ZaloPay response:", result);
-
-    // ⚙️ 2️⃣ Lưu đơn hàng vào DB
-    const order = await prisma.orders.create({
-      data: {
-        order_code: app_trans_id,
-        user_id,
-        shipping_address_id,
-        total_amount,
-        payment_method,
-        status: "pending", // chưa thanh toán
-        coupon_id: coupon_id || null,
-        order_items: {
-          create: items.map((i: any) => ({
-            product_id: i.product_id,
-            quantity: i.quantity,
-            price: i.price,
-            discount_percent: i.discount_percent || 0,
-            final_price: i.price * (1 - (i.discount_percent || 0) / 100),
-            subtotal:
-              i.quantity *
-              i.price *
-              (1 - (i.discount_percent || 0) / 100),
-          })),
-        },
-      },
-      include: { order_items: true },
-    });
-
-    console.log("✅ Đơn hàng đã lưu DB:", order.id, "→ order_code:", orderCode);
-    console.log("🔍 ZaloPay  trả về đầy đủ:", JSON.stringify(result, null, 2));
-
-    // ⚙️ 3️⃣ Nếu ZaloPay tạo đơn thành công → trả về cho frontend
-    if (result.return_code === 1) {
+    // ⚙️ Kết quả trả về frontend
+    if (zaloData.return_code === 1) {
       return NextResponse.json({
-        return_code: result.return_code,
         success: true,
-        message: result.return_message,
-        order_url: result.order_url, // URL để người dùng thanh toán
-        order_id: order.id, // để frontend biết order nào
+        message: "Tạo đơn hàng ZaloPay + GHN thành công!",
+        order_id: order.id,
         order_code: order.order_code,
+        order_url: zaloData.order_url, // QR thanh toán
+        ghn_response: ghnData,
+        return_code: zaloData.return_code
       });
-
+    } else {
+      return NextResponse.json(
+        { error: zaloData.sub_return_message || "Không thể tạo đơn ZaloPay" },
+        { status: 400 }
+      );
     }
-
-    // ⚙️ 4️⃣ Nếu ZaloPay thất bại
-    return NextResponse.json(
-      { error: result.sub_return_message || "Không thể tạo đơn ZaloPay" },
-      { status: 400 }
-    );
   } catch (err) {
-    console.error("❌ Lỗi tạo đơn hàng ZaloPay:", err);
+    console.error("❌ Lỗi khi tạo đơn hàng:", err);
     return NextResponse.json(
-      { error: "Tạo đơn hàng ZaloPay thất bại", details: err },
+      { error: "Tạo đơn hàng thất bại", details: err },
       { status: 500 }
     );
   }

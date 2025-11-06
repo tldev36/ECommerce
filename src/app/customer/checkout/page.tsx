@@ -191,8 +191,10 @@ export default function CheckoutPage() {
           orderInfo
         );
         const data = res.data;
-        if (data.return_code === 1 && data.order_url)
+        if (data.return_code === 1 && data.order_url) {
           window.location.href = data.order_url;
+          // clearCart();
+        }
         else alert("❌ Không thể tạo QR thanh toán ZaloPay");
       } catch (err) {
         console.error("Lỗi tạo đơn ZaloPay:", err);

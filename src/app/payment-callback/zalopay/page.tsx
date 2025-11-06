@@ -1,9 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import axios from "axios";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import { useRouter } from "next/navigation";
 
 export default function ZaloPayCallbackPage() {
   const searchParams = useSearchParams();
@@ -12,45 +10,34 @@ export default function ZaloPayCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Lấy giá trị `apptransid` từ URL
     if (!searchParams) {
-      console.error("Thiếu searchParams trong URL callback");
       setStatus("failed");
       return;
     }
 
     const appTransId = searchParams.get("apptransid");
-    const paymentStatus = searchParams.get("status"); // ZaloPay trả về 1 nếu thành công
+    const paymentStatus = searchParams.get("status"); // 1 = thành công
 
     if (!appTransId) {
-      console.error("Thiếu apptransid trong URL callback");
       setStatus("failed");
       return;
     }
 
-    // ✅ Gửi về backend để xác nhận & cập nhật DB
-    axios
-      .post("/api/zalopay/callback", { app_trans_id: appTransId, status: paymentStatus })
-      .then((res) => {
-        const data = res.data as { success?: boolean };
-        console.log("✅ Callback cập nhật DB:", data);
-        if (data.success) {
-          setStatus("success");
-          // tạo đơn hành cho giao hàng nhanh
+    if (paymentStatus === "1") {
+      setStatus("success");
 
-          // ✅ Xóa giỏ hàng khi thanh toán thành công
-          clearCart();
+      // ✅ Xóa giỏ hàng
+      clearCart();
 
-          router.push("/customer/home");
-        } else {
-          setStatus("failed");
-        }
-      })
-      .catch((err) => {
-        console.error("❌ Callback thất bại:", err);
-        setStatus("failed");
-      });
-  }, [searchParams]);
+      // ⏩ Redirect sau 1s để tránh loop
+      setTimeout(() => {
+        router.push("/customer/home");
+      }, 500);
+    } else {
+      setStatus("failed");
+    }
+  }, []); // ❌ KHÔNG để searchParams trong dependency
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">

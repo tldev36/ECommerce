@@ -1,60 +1,47 @@
+// /app/api/zalopay/callback/route.ts
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { ZALO_CONFIG } from "@/config";
 
-/**
- * 🧩 API: /api/zalopay/callback
- * Nhận dữ liệu từ client sau khi người dùng được redirect về
- */
-export async function POST(req: Request) {
+// 🔐 Hàm tạo checksum từ ZaloPay
+function generateZaloChecksum(key: string, data: string) {
+  if (!key) throw new Error("Zalo KEY1 chưa được set");
+  return crypto.createHmac("sha256", key).update(data).digest("hex");
+}
+
+export async function GET(req: Request) {
   try {
-    const { app_trans_id, status } = await req.json();
+    const url = new URL(req.url);
+    const params = url.searchParams;
 
-    if (!app_trans_id) {
-      return NextResponse.json({ success: false, message: "Thiếu app_trans_id" }, { status: 400 });
+    const app_trans_id = params.get("apptransid");
+    const amount = params.get("amount");
+    const app_id = params.get("appid");
+    const status = params.get("status");
+    const receivedChecksum = params.get("checksum");
+
+    if (!app_trans_id || !amount || !app_id || !status || !receivedChecksum) {
+      return NextResponse.json({ success: false, error: "Thiếu params ZaloPay" }, { status: 400 });
     }
 
-    console.log("📦 ZaloPay Callback:", { app_trans_id, status });
+    // 🔹 Tạo checksum để so sánh với ZaloPay gửi
+    const dataToCheck = `${app_id}|${app_trans_id}|${amount}|${status}`;
+    const calculatedChecksum = generateZaloChecksum(ZALO_CONFIG.KEY1, dataToCheck);
 
-    // ✅ Nếu thanh toán thành công (status === "1")
-    if (status === "1") {
-      const updated = await prisma.orders.updateMany({
-        where: { order_code: app_trans_id },
-        data: {
-          status: "paid",
-          // payment_date: new Date(),
-        },
-      });
-
-      if (updated.count === 0) {
-        console.warn(`⚠️ Không tìm thấy đơn hàng ${app_trans_id}`);
-        return NextResponse.json({
-          success: false,
-          message: "Không tìm thấy đơn hàng để cập nhật",
-        });
-      }
-
-      console.log(`✅ Đơn hàng ${app_trans_id} → ĐÃ THANH TOÁN`);
-      return NextResponse.json({
-        success: true,
-        message: "Cập nhật đơn hàng thành công",
-      });
+    if (calculatedChecksum !== receivedChecksum) {
+      return NextResponse.json({ success: false, error: "Checksum không hợp lệ" }, { status: 400 });
     }
 
-    // ❌ Nếu thất bại
-    await prisma.orders.updateMany({
+    // 🔹 Cập nhật trạng thái đơn hàng trong DB
+    const order = await prisma.orders.update({
       where: { order_code: app_trans_id },
-      data: { status: "cancelled" },
+      data: { status: status === "1" ? "success" : "failed" },
     });
 
-    return NextResponse.json({
-      success: false,
-      message: "Thanh toán thất bại hoặc bị hủy",
-    });
-  } catch (error: any) {
-    console.error("❌ Lỗi callback:", error);
-    return NextResponse.json(
-      { success: false, message: "Lỗi xử lý callback", details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, order_id: order.id, status: order.status });
+  } catch (err: any) {
+    console.error("❌ Lỗi callback ZaloPay:", err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
