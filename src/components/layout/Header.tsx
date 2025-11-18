@@ -109,9 +109,17 @@ export default function Header() {
     <header className="bg-green-700 shadow-md fixed top-0 left-0 w-full z-50">
       <div className="container mx-auto flex items-center justify-between px-6 py-3 gap-4 ">
         {/* Logo */}
-        <Link href="/" className="text-white font-bold text-lg whitespace-nowrap">
-          <Image src="/images/logo/logo-FF.png" alt="MyShop" width={100} height={40} />
-        </Link>
+        <div className="flex-shrink-0">
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/images/logo/logo-FF.png"
+              alt="MyShop"
+              width={100}
+              height={40}
+              className="h-10 w-auto object-contain"
+            />
+          </Link>
+        </div>
 
         {/* Menu chính */}
         <nav ref={navRef} className="flex space-x-2 relative">
@@ -212,9 +220,9 @@ export default function Header() {
                     <Link href="/customer/order-history" className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
                       Lịch sử mua hàng
                     </Link>
-                    <Link href="/customer/wishlist" className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
+                    {/* <Link href="/customer/wishlist" className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
                       Danh sách yêu thích
-                    </Link>
+                    </Link> */}
                     <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
                       Đăng xuất
                     </button>

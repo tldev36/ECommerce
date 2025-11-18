@@ -492,13 +492,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeItem = async (id: number) => {
     if (isLoggedIn) {
-      const res = await axios.delete<{ cart: CartItem[] }>(
-        `/api/cart/delete/${id}`
-      );
-      if (res.data.cart) setCart(res.data.cart);
-    } else {
-      saveCartToCookie(cart.filter((i) => i.product_id !== id));
-    }
+    await axios.delete(`/api/cart/delete/${id}`);
+    setCart(cart.filter((i) => i.product_id !== id)); 
+  } else {
+    saveCartToCookie(cart.filter((i) => i.product_id !== id));
+  }
   };
 
   const updateQuantity = async (id: number, quantity: number) => {

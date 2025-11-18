@@ -105,15 +105,21 @@ export default function HomeRecommendations() {
   }
 
   return (
-    <section className="max-w-7xl mx-auto px-4 py-10 space-y-6">
-      <h2 className="text-xl font-bold mb-4">
-        🎯 Gợi ý dành riêng cho bạn
-      </h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
+    <section className="w-full bg-white py-14">
+      <div className="max-w-[1700px] mx-auto px-6 space-y-8">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-wide text-gray-900">
+            🎯 Gợi ý dành riêng cho bạn
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-7">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
       </div>
-    </section>
+
+    </section >
   );
 }

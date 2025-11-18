@@ -24,6 +24,7 @@ export interface ProductApi {
   created_at?: string;   // <-- API trả về chuỗi
   updated_at?: string;
   categories?: Category | null;
+  description?: string | null;
 }
 
 /**

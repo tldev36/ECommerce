@@ -7,6 +7,7 @@ import { Product } from "@/types/product";
 import axios from "axios";
 import { useCart } from "@/context/CartContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCartPlus } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faSolidHeart } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faRegularHeart } from "@fortawesome/free-regular-svg-icons";
 
@@ -37,7 +38,7 @@ export default function ProductCard({ product }: { product: Product }) {
           src={imgSrc}
           alt={product?.name ?? "Product"}
           fill
-          sizes="100vw"
+          sizes="(max-width: 768px) 50vw, 33vw"
           style={{ objectFit: "cover" }}
           onError={() => setImgSrc("/images/products/default.jpg")}
         />
@@ -76,7 +77,7 @@ export default function ProductCard({ product }: { product: Product }) {
         <div className="flex items-center justify-between pt-2">
           {/* Price */}
           <div className="text-sm font-medium">
-            {product.discount ? (
+            {product.discount && product.discount > 0 ? (
               <>
                 <span className="text-red-600 font-bold">
                   {finalPrice.toLocaleString()}₫
@@ -99,9 +100,10 @@ export default function ProductCard({ product }: { product: Product }) {
               e.stopPropagation();
               addItem(product);
             }}
-            className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition"
+            className="flex items-center gap-2 text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition"
           >
-            Thêm
+            <FontAwesomeIcon icon={faCartPlus} className="text-sm" />
+            
           </button>
         </div>
       </div>

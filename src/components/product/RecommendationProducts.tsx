@@ -23,21 +23,24 @@ export default async function RecommendationProducts() {
     //     ))}
     //   </div>
     // </section>
-    <section className="max-w-7xl mx-auto px-4 py-10 space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold tracking-wide text-gray-800">
-          Sản phẩm đề xuất
-        </h2>
-        <button className="text-green-600 text-sm hover:underline">
-          Xem tất cả →
-        </button>
-      </div>
+    <section className="w-full bg-white py-14">
+      <div className="max-w-[1700px] mx-auto px-6 space-y-8">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-wide text-gray-900">
+            Sản phẩm đề xuất
+          </h2>
+          <button className="text-green-600 text-sm hover:underline">
+            Xem tất cả →
+          </button>
+        </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-        {products.map((p) => (
-          <ProductCard key={p.id} product={p} />
-        ))}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-7">
+          {products.map((p) => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </div>
       </div>
     </section>
+
   );
 }
