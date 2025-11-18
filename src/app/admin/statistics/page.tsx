@@ -1,177 +1,213 @@
 "use client";
-import React, { useState } from "react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-} from "recharts";
 
-// Dữ liệu doanh thu giả định (nhiều tháng)
-const revenueDataByMonth = [
-  { month: "Jan", revenue: 12000000, bestProduct: "Áo thun Unisex" },
-  { month: "Feb", revenue: 9000000, bestProduct: "Giày Sneaker" },
-  { month: "Mar", revenue: 15000000, bestProduct: "Áo khoác da" },
-  { month: "Apr", revenue: 18000000, bestProduct: "Quần jean nam" },
-  { month: "May", revenue: 20000000, bestProduct: "Đồng hồ nam" },
-  { month: "Jun", revenue: 22000000, bestProduct: "Túi xách nữ" },
-  { month: "Jul", revenue: 19500000, bestProduct: "Giày thể thao nữ" },
-  { month: "Aug", revenue: 23000000, bestProduct: "Áo sơ mi nam" },
-  { month: "Sep", revenue: 17500000, bestProduct: "Áo hoodie" },
-  { month: "Oct", revenue: 25000000, bestProduct: "Áo polo cao cấp" },
-  { month: "Nov", revenue: 21000000, bestProduct: "Balo laptop" },
-  { month: "Dec", revenue: 30000000, bestProduct: "Giày sneaker trắng" },
-];
+import React, { useEffect, useState } from "react";
+import { Download, Loader2 } from "lucide-react";
 
-const orderData = [
-  { status: "Thành công", value: 320 },
-  { status: "Đang xử lý", value: 150 },
-  { status: "Đã hủy", value: 45 },
-];
-
-// Card Components
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`bg-white rounded-2xl shadow p-4 ${className}`}>{children}</div>;
-}
-function CardHeader({ children }: { children: React.ReactNode }) {
-  return <div className="mb-4 border-b pb-2">{children}</div>;
-}
-function CardTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-xl font-semibold text-gray-800">{children}</h2>;
-}
-function CardContent({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={className}>{children}</div>;
+interface Invoice {
+  id: number;
+  order_code: string;
+  customer?: string;
+  date: string;
+  total: number;
+  status: string;
+  payment_method: string;
 }
 
-// ✅ Trang thống kê
-export default function StatisticsDashboard() {
-  const [filter, setFilter] = useState<"month" | "quarter" | "year">("month");
-  const [selectedMonth, setSelectedMonth] = useState("Jan");
+export default function StatisticsPage() {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [filtered, setFiltered] = useState<Invoice[]>([]);
+  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
+  const [year, setYear] = useState<number>(new Date().getFullYear());
+  const [status, setStatus] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  // Lọc dữ liệu theo tháng
-  const filteredData =
-    filter === "month"
-      ? revenueDataByMonth.filter((item) => item.month === selectedMonth)
-      : revenueDataByMonth;
+  // 🧠 Lấy dữ liệu thật từ API
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/admin/statistics/list-order");
+        const data = await res.json();
+        if (data.success) {
+          const orders = data.orders.map((o: any) => ({
+            id: o.id,
+            order_code: o.order_code,
+            customer: o.user_id ? `User #${o.user_id}` : "Khách lẻ",
+            date: o.created_at,
+            total: o.amount,
+            status: o.status,
+            payment_method: o.payment_method,
+          }));
+          setInvoices(orders);
+        }
+      } catch (err) {
+        console.error("Lỗi tải dữ liệu:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
 
-  const selectedInfo = revenueDataByMonth.find((item) => item.month === selectedMonth);
+  // 🔍 Lọc dữ liệu theo tháng, năm, trạng thái, tìm kiếm
+  useEffect(() => {
+    let filteredList = invoices;
+
+    filteredList = filteredList.filter((inv) => {
+      const d = new Date(inv.date);
+      return d.getMonth() + 1 === month && d.getFullYear() === year;
+    });
+
+    if (status !== "all") filteredList = filteredList.filter((inv) => inv.status === status);
+
+    if (search.trim() !== "") {
+      filteredList = filteredList.filter(
+        (inv) =>
+          inv.order_code.toLowerCase().includes(search.toLowerCase()) ||
+          inv.customer?.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    setFiltered(filteredList);
+  }, [invoices, month, year, status, search]);
+
+  const totalRevenue = filtered.reduce((sum, inv) => sum + inv.total, 0);
+  const totalOrders = filtered.length;
+  const completedOrders = filtered.filter((i) => i.status === "completed").length;
 
   return (
-    <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-gray-50 min-h-screen">
-      {/* Bộ lọc thống kê */}
-      <Card className="col-span-1 lg:col-span-3">
-        <CardHeader>
-          <CardTitle>📅 Bộ lọc thống kê</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-4 items-center">
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as any)}
-            className="border p-2 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-400"
-          >
-            <option value="month">Theo tháng</option>
-            <option value="quarter">Theo quý</option>
-            <option value="year">Theo năm</option>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">
+        📊 Thống kê chi tiết hóa đơn
+      </h1>
+
+      {/* Bộ lọc */}
+      <div className="bg-white shadow rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-4 justify-between">
+        <div className="flex flex-wrap items-center gap-4">
+          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="border p-2 rounded-lg">
+            {Array.from({ length: 12 }, (_, i) => (
+              <option key={i + 1} value={i + 1}>
+                Tháng {i + 1}
+              </option>
+            ))}
           </select>
 
-          {filter === "month" && (
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="border p-2 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-400"
-            >
-              {revenueDataByMonth.map((item) => (
-                <option key={item.month} value={item.month}>
-                  {item.month}
-                </option>
-              ))}
-            </select>
-          )}
-        </CardContent>
-      </Card>
+          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="border p-2 rounded-lg">
+            {[2024, 2025, 2026].map((y) => (
+              <option key={y} value={y}>
+                Năm {y}
+              </option>
+            ))}
+          </select>
 
-      {/* Tổng quan */}
-      <Card className="col-span-1 lg:col-span-3">
-        <CardHeader>
-          <CardTitle>📊 Thống kê tổng quan</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-green-100 p-4 rounded-2xl text-center">
-            <p className="text-lg font-medium text-gray-600">Doanh thu</p>
-            <p className="text-2xl font-bold text-green-600">
-              {filter === "month"
-                ? `${selectedInfo?.revenue.toLocaleString()}₫`
-                : "220.000.000₫"}
-            </p>
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="border p-2 rounded-lg">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="pending">Chờ xử lý</option>
+            <option value="processing">Đang xử lý</option>
+            <option value="completed">Hoàn thành</option>
+            <option value="cancelled">Đã hủy</option>
+          </select>
+
+          <input
+            type="text"
+            placeholder="🔍 Tìm kiếm mã đơn hoặc tên khách hàng..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border p-2 rounded-lg w-64"
+          />
+
+          <button
+            onClick={() => setSearch("")}
+            className="bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200 transition"
+          >
+            Làm mới
+          </button>
+        </div>
+
+        {/* Nút xuất Excel */}
+        <button
+          onClick={() => alert("Chức năng xuất Excel đang được phát triển!")}
+          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+        >
+          <Download size={18} />
+          Xuất Excel
+        </button>
+      </div>
+
+      {/* Tổng kết nhanh */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-green-100 p-4 rounded-xl text-center">
+          <p className="text-gray-600">Tổng doanh thu</p>
+          <p className="text-2xl font-bold text-green-700">
+            {totalRevenue.toLocaleString()}₫
+          </p>
+        </div>
+        <div className="bg-blue-100 p-4 rounded-xl text-center">
+          <p className="text-gray-600">Tổng số đơn</p>
+          <p className="text-2xl font-bold text-blue-700">{totalOrders}</p>
+        </div>
+        <div className="bg-yellow-100 p-4 rounded-xl text-center">
+          <p className="text-gray-600">Đơn hoàn thành</p>
+          <p className="text-2xl font-bold text-yellow-700">{completedOrders}</p>
+        </div>
+      </div>
+
+      {/* Bảng dữ liệu */}
+      <div className="bg-white shadow rounded-2xl overflow-x-auto">
+        {loading ? (
+          <div className="p-10 text-center text-gray-500 flex items-center justify-center gap-2">
+            <Loader2 className="animate-spin" /> Đang tải dữ liệu...
           </div>
-          <div className="bg-blue-100 p-4 rounded-2xl text-center">
-            <p className="text-lg font-medium text-gray-600">Đơn hàng</p>
-            <p className="text-2xl font-bold text-blue-600">515</p>
-          </div>
-          <div className="bg-yellow-100 p-4 rounded-2xl text-center">
-            <p className="text-lg font-medium text-gray-600">Người dùng mới</p>
-            <p className="text-2xl font-bold text-yellow-600">127</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Biểu đồ doanh thu */}
-      <Card className="col-span-1 md:col-span-2">
-        <CardHeader>
-          <CardTitle>💰 Doanh thu {filter === "month" ? "theo tháng" : "trung bình"}</CardTitle>
-        </CardHeader>
-        <CardContent className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={filteredData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip formatter={(value: number) => `${value.toLocaleString()}₫`} />
-              <Line type="monotone" dataKey="revenue" stroke="#16a34a" strokeWidth={3} />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Biểu đồ trạng thái đơn hàng */}
-      <Card>
-        <CardHeader>
-          <CardTitle>📦 Trạng thái đơn hàng</CardTitle>
-        </CardHeader>
-        <CardContent className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={orderData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="status" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="value" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Gợi ý sản phẩm nổi bật */}
-      <Card className="col-span-1 lg:col-span-3">
-        <CardHeader>
-          <CardTitle>🏆 Mặt hàng nổi bật</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {filter === "month" && selectedInfo ? (
-            <p className="text-lg">
-              Trong tháng <b>{selectedMonth}</b>, sản phẩm bán chạy nhất là{" "}
-              <span className="font-semibold text-blue-600">{selectedInfo.bestProduct}</span>.
-            </p>
-          ) : (
-            <p className="text-gray-600">Chọn tháng để xem mặt hàng nổi bật.</p>
-          )}
-        </CardContent>
-      </Card>
+        ) : (
+          <table className="w-full border-collapse">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="text-left p-3 border-b">Mã đơn</th>
+                <th className="text-left p-3 border-b">Khách hàng</th>
+                <th className="text-left p-3 border-b">Ngày tạo</th>
+                <th className="text-right p-3 border-b">Tổng tiền</th>
+                <th className="text-center p-3 border-b">Trạng thái</th>
+                <th className="text-center p-3 border-b">Thanh toán</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length > 0 ? (
+                filtered.map((inv) => (
+                  <tr key={inv.id} className="hover:bg-gray-50 transition-colors border-b">
+                    <td className="p-3 font-medium">{inv.order_code}</td>
+                    <td className="p-3">{inv.customer}</td>
+                    <td className="p-3">{new Date(inv.date).toLocaleDateString("vi-VN")}</td>
+                    <td className="p-3 text-right">{inv.total.toLocaleString()}₫</td>
+                    <td className="p-3 text-center">
+                      <span
+                        className={`px-2 py-1 rounded-full text-sm ${
+                          inv.status === "completed"
+                            ? "bg-green-100 text-green-700"
+                            : inv.status === "pending"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : inv.status === "processing"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {inv.status}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center capitalize">{inv.payment_method}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="text-center py-6 text-gray-500">
+                    Không có dữ liệu phù hợp.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

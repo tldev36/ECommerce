@@ -12,21 +12,22 @@ export default async function NewProducts() {
     take: 12, // chỉ lấy 12 sản phẩm mới nhất
     include: { categories: true },
   });
-console.log("New Products1:", products.length);
+  console.log("New Products1:", products.length);
   const newProducts: Product[] = products.map(ProductMapper.toDomain);
 
   console.log("New Products2:", newProducts.length);
+
   return (
-    <section className="max-w-6xl mx-auto px-4 py-8">
+    <section className="max-w-7xl mx-auto px-4 py-10 space-y-6">
       <h2 className="text-2xl font-semibold mb-4">Sản phẩm mới</h2>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {newProducts.slice(0, 8).map((p) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+        {newProducts.slice(0, 10).map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}
       </div>
 
-      {newProducts.length > 8 && (
+      {newProducts.length > 10 && (
         <div className="mt-6 text-center">
           <Link
             href="/products/new"

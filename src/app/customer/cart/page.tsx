@@ -12,16 +12,30 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import { useRouter } from "next/navigation";
-import { getUserFromToken } from "@/lib/auth";
 
 export default function CartPage() {
-  const { cart, removeItem, clearCart, updateQuantity, user, isLoggedIn } = useCart();
+  const { cart, removeItem, clearCart, updateQuantity, isLoggedIn } = useCart();
 
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const [user, setUser] = useState<any>(null);
 
+  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        console.log("✅ User data:", data); // Thêm dòng này
+        setUser(data.user || null);
+      } catch (err) {
+        console.error("❌ Fetch user error:", err);
+        setUser(null);
+      }
+    };
+    fetchUser();
+  }, []);
 
 
   // 🧩 Thêm log để xem tình trạng đăng nhập và dữ liệu
@@ -39,7 +53,7 @@ export default function CartPage() {
   }, [isLoggedIn, user, cart]);
 
   const handleCheckout = async () => {
-    if (!isLoggedIn) {
+    if (!user) {
       router.push("/auth/login?redirect=/customer/cart");
       return;
     }

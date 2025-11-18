@@ -41,7 +41,7 @@ export default function InvoiceModal({
     }
   };
 
-   function formatAddress(addressString?: string) {
+  function formatAddress(addressString?: string) {
     if (!addressString) return null; // tránh lỗi null/undefined
     return addressString.split("-").map((line, index) => (
       <div key={index}>{line.trim()}</div>
@@ -71,23 +71,26 @@ export default function InvoiceModal({
             <p>
               <strong>Trạng thái:</strong>{" "}
               <span
-                className={`px-2 py-1 rounded-md text-xs font-semibold ${
-                  status === "pending"
-                    ? "bg-yellow-100 text-yellow-700"
-                    : status === "approved"
+                className={`px-2 py-1 rounded-md text-xs font-semibold ${status === "pending"
+                  ? "bg-yellow-100 text-yellow-700"
+                  : status === "approved"
                     ? "bg-green-100 text-green-700"
                     : status === "shipping"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-red-100 text-red-700"
-                }`}
+                      ? "bg-blue-100 text-blue-700"
+                      : order.status === "completed"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                  }`}
               >
                 {status === "pending"
                   ? "Chờ duyệt"
                   : status === "approved"
-                  ? "Đã duyệt"
-                  : status === "shipping"
-                  ? "Đang giao"
-                  : "Từ chối"}
+                    ? "Đã duyệt"
+                    : status === "shipping"
+                      ? "Đang giao"
+                      : order.status === "completed"
+                        ? "Xong"
+                        : "Từ chối"}
               </span>
             </p>
             <p>

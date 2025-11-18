@@ -149,7 +149,7 @@ export async function POST(req: Request) {
     });
 
     const ghnData = await ghnRes.json();
-    console.log("📨 GHN response:", ghnData);
+    console.log("📨 GHN response zalopay:", ghnData);
 
     // 🧾 Lưu thông tin GHN vào DB nếu thành công
     if (ghnData?.data) {

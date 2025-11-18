@@ -23,7 +23,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams?.get("redirect") ?? "/customer/home";
-  const { setCartFromServer, fetchUser, user, isLoggedIn } = useCart();
+  const { setCartFromServer, user, isLoggedIn } = useCart();
   
   useEffect(() => {
     console.log("=== CART PAGE DEBUG ===");
@@ -73,7 +73,7 @@ export default function LoginPage() {
         return;
       }
 
-      await fetchUser();
+      // await fetchUser();
 
       const loginData = await res.json();
       const role = loginData?.user?.role;
@@ -162,6 +162,17 @@ export default function LoginPage() {
           >
             {isSubmitting ? "Đang xử lý..." : "Đăng nhập"}
           </button>
+
+          {/* Link sang login */}
+          <p className="text-center text-sm text-gray-600 mt-4">
+            Chưa có tài khoản?{" "}
+            <a
+              href="/auth/register"
+              className="text-green-600 hover:underline font-medium"
+            >
+              Đăng ký
+            </a>
+          </p>
         </form>
       </div>
     </div>

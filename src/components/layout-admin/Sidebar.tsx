@@ -10,16 +10,20 @@ import {
   faUsers,
   faCog,
   faBars,
+  faBox,
+  faTicket,
+  faChartArea
 } from "@fortawesome/free-solid-svg-icons";
 
 const MENU_ITEMS = [
   { name: "Bảng điều khiển", icon: faTachometerAlt, path: "/admin/dashboard" },
   { name: "Sản phẩm", icon: faBoxOpen, path: "/admin/products" },
   { name: "Loại sản phẩm", icon: faShoppingBag, path: "/admin/categories" },
-  { name: "Người dùng", icon: faUsers, path: "/admin/users" },
-  { name: "Đơn hàng", icon: faCog, path: "/admin/orders" },
-  { name: "Giảm giá", icon: faCog, path: "/admin/coupons" },
-  { name: "Thống kê", icon: faCog, path: "/admin/statistics" },
+  // { name: "Người dùng", icon: faUsers, path: "/admin/users" },
+  { name: "Đơn hàng", icon: faBox, path: "/admin/orders" },
+  { name: "Giảm giá", icon: faTicket, path: "/admin/coupons" },
+  // { name: "Thống kê", icon: faCog, path: "/admin/statistics" },
+  { name: "Thống kê", icon: faChartArea, path: "/admin/demochart" },
 
 ];
 

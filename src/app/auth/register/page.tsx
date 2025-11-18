@@ -8,9 +8,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 // ✅ Schema với Zod
 export const registerSchema = z.object({
-  username: z
-    .string()
-    .nonempty("Vui lòng nhập tên đăng nhập"),
+  // username: z
+  //   .string()
+  //   .nonempty("Vui lòng nhập tên đăng nhập"),
 
   name: z
     .string()
@@ -112,7 +112,7 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Username */}
 
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Tên đăng nhập
             </label>
@@ -126,7 +126,7 @@ export default function RegisterPage() {
                 {errors.username.message}
               </p>
             )}
-          </div>
+          </div> */}
 
 
           {/* Name */}

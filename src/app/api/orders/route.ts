@@ -78,8 +78,8 @@ export async function POST(req: Request) {
       note: `Giao đơn hàng #${order.order_code}`,
       required_note: "KHONGCHOXEMHANG",
       return_phone: "0967123456",
-      return_address: "123 QL13, Phường Hiệp An, Thủ Dầu Một, Bình Dương",
-      return_district_id: 1482,
+      // return_address: "123 QL13, Phường Hiệp An, Thủ Dầu Một, Bình Dương",
+      // return_district_id: 1482,
       to_name: recipient_name || "Khách hàng",
       to_phone: recipient_phone || "0000000000",
       to_address: toAddress,
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
       })),
     };
 
-    console.log("📦 GHN request payload:", ghnPayload);
+    console.log("📦 GHN request payload order:", ghnPayload);
 
     // 🚀 Gửi yêu cầu GHN
     const ghnRes = await fetch(`${GHN_BASE_URL}/v2/shipping-order/create`, {

@@ -4,25 +4,23 @@ import { cookies } from "next/headers";
 const SECRET = process.env.JWT_SECRET || "supersecret";
 
 /**
- * Lấy thông tin user từ token lưu trong cookie
- * Chỉ dùng trong môi trường SERVER (App Router)
+ * Lấy thông tin user từ JWT trong cookie (server-only)
  */
-export async function getUserFromToken() {
+export async function getUserFromToken(): Promise<{ id: number; email: string; role: string } | null> {
   try {
-    // Lấy cookie token
     const cookieStore = await cookies();
     const token = cookieStore.get("token")?.value;
     if (!token) return null;
 
-    // Giải mã JWT
     const decoded = jwt.verify(token, SECRET) as {
       id: number;
       email: string;
       role: string;
     };
 
-    return decoded; // → { id, email, role }
+    return decoded; // ✅ Trả về toàn bộ thông tin user
   } catch (error) {
+    console.error("Invalid token:", error);
     return null;
   }
 }

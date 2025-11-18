@@ -26,6 +26,8 @@ export default function InvoiceCard({
               ? "bg-yellow-100 text-yellow-700"
               : order.status === "seed"
               ? "bg-green-100 text-green-700"
+              : order.status === "completed"
+              ? "bg-green-100 text-green-700"
               : "bg-red-100 text-red-700"
           }`}
         >
@@ -33,6 +35,8 @@ export default function InvoiceCard({
             ? "Chờ duyệt"
             : order.status === "seed"
             ? "Đã duyệt"
+            : order.status === "completed"
+            ? "Xong"
             : "Từ chối"}
         </span>
       </div>

@@ -19,10 +19,11 @@ export async function POST(req: Request) {
     if (!isMatch) return NextResponse.json({ error: "Sai mật khẩu" }, { status: 401 });
 
     // Tạo JWT 10 phút
+    // Tạo JWT 7 ngày
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       SECRET,
-      { expiresIn: "60m" } // ⬅ 60 phút
+      { expiresIn: "7d" } // ✅ JWT hết hạn sau 7 ngày
     );
 
     const cookieStore = await cookies();
@@ -30,9 +31,10 @@ export async function POST(req: Request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 10, // ⬅ 10 phút (tính bằng giây)
+      maxAge: 60 * 60 * 24 * 7, // ✅ 7 ngày (7 * 24h * 60m * 60s)
       path: "/",
     });
+
 
     // 4️⃣ Lấy giỏ hàng từ cookie (nếu có)
     const cartCookie = cookieStore.get("cart");

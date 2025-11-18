@@ -8,16 +8,32 @@ export default async function RecommendationProducts() {
   const dbProducts = await prisma.products.findMany({
     where: { featured: true },
     include: { categories: true },
-    take: 4, // chỉ lấy 4 sản phẩm
+    take: 5, // chỉ lấy 5 sản phẩm
   });
 
   // Convert Prisma model -> Domain model
   const products = dbProducts.map(ProductMapper.toDomain);
 
   return (
-    <section className="max-w-6xl mx-auto px-4 py-8">
-      <h2 className="text-2xl font-semibold mb-4">Sản phẩm đề xuất</h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+    // <section className="max-w-7xl mx-auto px-4 py-10 space-y-6">
+    //   <h2 className="text-2xl font-semibold mb-4">Sản phẩm đề xuất</h2>
+    //   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+    //     {products.map((p) => (
+    //       <ProductCard key={p.id} product={p} />
+    //     ))}
+    //   </div>
+    // </section>
+    <section className="max-w-7xl mx-auto px-4 py-10 space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold tracking-wide text-gray-800">
+          Sản phẩm đề xuất
+        </h2>
+        <button className="text-green-600 text-sm hover:underline">
+          Xem tất cả →
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
         {products.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}

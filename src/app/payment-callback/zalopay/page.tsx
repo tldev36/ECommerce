@@ -26,6 +26,9 @@ export default function ZaloPayCallbackPage() {
     if (paymentStatus === "1") {
       setStatus("success");
 
+      // tạo hóa đơn giao hàng nhanh
+      
+
       // ✅ Xóa giỏ hàng
       clearCart();
 

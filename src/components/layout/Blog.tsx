@@ -4,7 +4,7 @@ import Image from "next/image";
 export default function Blog() {
 
     return (
-        <section className="max-w-6xl mx-auto px-4 py-12">
+        <section className="max-w-7xl mx-auto px-4 py-10 space-y-6">
             <h2 className="text-2xl font-semibold mb-6">Blog & Mẹo</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[1, 2, 3].map((i) => (

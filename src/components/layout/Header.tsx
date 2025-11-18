@@ -43,8 +43,10 @@ export default function Header() {
       try {
         const res = await fetch("/api/auth/me");
         const data = await res.json();
+        console.log("✅ User data:", data); // Thêm dòng này
         setUser(data.user || null);
-      } catch {
+      } catch (err) {
+        console.error("❌ Fetch user error:", err);
         setUser(null);
       }
     };

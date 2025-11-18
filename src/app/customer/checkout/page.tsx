@@ -16,7 +16,7 @@ import type { PaymentMethod } from "@/types/order";
 import { formatFullAddress } from "@/lib/formatFullAddress";
 
 export default function CheckoutPage() {
-  const { cart, clearCart, isLoggedIn, user, loadingUser } = useCart();
+  const { cart, clearCart, isLoggedIn, loadingUser } = useCart();
   const router = useRouter();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -45,13 +45,34 @@ export default function CheckoutPage() {
     [total, discount, shippingFee]
   );
 
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        console.log("✅ User data:", data); // Thêm dòng này
+        setUser(data.user || null);
+      } catch (err) {
+        console.error("❌ Fetch user error:", err);
+        setUser(null);
+      }
+    };
+    fetchUser();
+  }, []);
+
   // 🧩 Thêm log để xem tình trạng đăng nhập và dữ liệu
   useEffect(() => {
     console.log("=== CART PAGE DEBUG ===");
     console.log("isLoggedIn:", isLoggedIn);
     console.log("user:", user);
     console.log("cart:", cart);
-
+    if (loadingUser !== undefined)
+    {
+      console.log("loadingUser1:", loadingUser);
+    }
+    console.log("loadingUser2:", loadingUser);
     // Kiểm tra cookie `token` phía client (chỉ để debug)
     console.log(
       "token cookie (client):",
@@ -129,7 +150,7 @@ export default function CheckoutPage() {
 
   // 🛍️ Đặt hàng
   const handlePlaceOrder = async () => {
-    if (!isLoggedIn || !user) {
+    if (!user) {
       alert("⚠️ Bạn cần đăng nhập trước khi đặt hàng!");
       return;
     }

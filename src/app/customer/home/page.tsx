@@ -9,19 +9,23 @@ import SpecialOffers from "@/components/layout/SpecialOffers";
 import Blog from "@/components/layout/Blog";
 import Review from "@/components/layout/Review";
 import Newsletter from "@/components/layout/Newsletter";
+import HomeRecommendations from "@/components/HomeRecommendations";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50 pt-16"> 
+    <div className="min-h-screen bg-gray-200 pt-16"> 
       
       {/* Slider */}
       <Slider />
       
       {/* Categories */}
-      <Categories />
+      {/* <Categories /> */}
 
       {/* Recommendations Product */}
       <RecommendationProducts />
+
+      {/* recommend */}
+      <HomeRecommendations/>
 
       {/* New Product */}
       <NewProducts />
@@ -40,8 +44,6 @@ export default function Home() {
 
       {/* Floating Buttons */}
       <FloatingButtons />
-
-      
 
     </div>
   );
