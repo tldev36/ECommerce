@@ -13,7 +13,7 @@ import HomeRecommendations from "@/components/HomeRecommendations";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-200 pt-16"> 
+    <div className="min-h-[800px] bg-gray-200 pt-16 "> 
       
       {/* Slider */}
       <Slider />
@@ -31,16 +31,16 @@ export default function Home() {
       <NewProducts />
 
       {/* Special Offers */}
-      <SpecialOffers />
+      {/* <SpecialOffers /> */}
 
       {/* Blog */}
       <Blog />
 
       {/* Review */}
-      <Review />
+      {/* <Review /> */}
 
       {/* Newsletter */}
-      <Newsletter />
+      {/* <Newsletter /> */}
 
       {/* Floating Buttons */}
       <FloatingButtons />

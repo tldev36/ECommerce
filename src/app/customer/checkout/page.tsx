@@ -191,7 +191,8 @@ export default function CheckoutPage() {
       total_amount: finalTotal,
       payment_method: paymentMethod,
       ship_amount: shippingFee,
-      coupon_amount: discount
+      coupon_amount: discount,
+      total_weight: totalWeight,
     };
 
     try {

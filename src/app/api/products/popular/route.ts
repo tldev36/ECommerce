@@ -13,6 +13,7 @@ export async function GET() {
         slug: true,
         image: true,
         price: true,
+        unit: true,
       },
     });
 

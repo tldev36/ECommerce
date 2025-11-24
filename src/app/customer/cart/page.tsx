@@ -7,6 +7,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrash, faShoppingCart, faMinus, faPlus, faShoppingBag, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import { useRouter } from "next/navigation";
 import HomeRecommendations from "@/components/HomeRecommendations";
+import CartRecommendations from "@/components/CartRecommendations";
 
 export default function CartPage() {
   const { cart, removeItem, clearCart, updateQuantity, isLoggedIn } = useCart();
@@ -268,7 +269,7 @@ export default function CartPage() {
                 Bạn có thể quan tâm
               </h2>
               <div className="overflow-x-auto">
-                <HomeRecommendations />
+                <CartRecommendations />
               </div>
             </div>
           </section>

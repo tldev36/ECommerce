@@ -7,6 +7,7 @@ export interface CartItem {
   unit: string;
   image: string;
   quantity: number;
-  unit?: number; // in grams
+  unit?: string; // in grams
   dicount_percent?: number;
+  weight_gram?: number;
 }

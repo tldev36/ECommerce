@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Order_Item } from "@/types/order_item";
+import { fr } from "zod/v4/locales";
 
 const GHN_BASE_URL = process.env.GHN_BASE_URL!;
 const GHN_TOKEN = process.env.GHN_TOKEN!;
@@ -8,6 +9,7 @@ const GHN_SHOP_ID = Number(process.env.GHN_SHOP_ID!);
 
 export async function POST(req: Request) {
   try {
+    // const weightGHN = 500; // gram
     const body = await req.json();
     const {
       user_id,
@@ -17,6 +19,7 @@ export async function POST(req: Request) {
       payment_method,
       coupon_amount,
       ship_amount,
+      total_weight,
     } = body;
 
     if (!user_id || !shipping_address_id || !items?.length) {
@@ -25,6 +28,13 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    // 🔢 Tính tổng trọng lượng đơn hàng để gửi GHN
+    // const weightGHN = items.order_items.reduce((total:any, item:any) => {
+    //   const raw = Number(item.product?.unit?.replace(/\D/g, "")) || 0;
+    //   const normalized = Math.ceil(raw / 10); // VD: 1000g → 100
+    //   return total + normalized * Number(item.quantity);
+    // }, 0);
 
     // 🏠 Lấy địa chỉ giao hàng
     const address = await prisma.shipping_addresses.findUnique({
@@ -71,15 +81,15 @@ export async function POST(req: Request) {
     // 📦 Tạo payload GHN
     const [recipient_name, recipient_phone, ...addressParts] = address_detail.split("-");
     const toAddress = addressParts.join("-").trim();
-    
+
     const ghnPayload = {
       shop_id: GHN_SHOP_ID,
       payment_type_id: 2,
       note: `Giao đơn hàng #${order.order_code}`,
       required_note: "KHONGCHOXEMHANG",
       return_phone: "0967123456",
-      // return_address: "123 QL13, Phường Hiệp An, Thủ Dầu Một, Bình Dương",
-      // return_district_id: 1482,
+      return_address: "123 QL13, Phường Hiệp An, Thủ Dầu Một, Bình Dương",
+      return_district_id: 1482,
       to_name: recipient_name || "Khách hàng",
       to_phone: recipient_phone || "0000000000",
       to_address: toAddress,
@@ -98,6 +108,7 @@ export async function POST(req: Request) {
         weight: 200,
       })),
     };
+
 
     console.log("📦 GHN request payload order:", ghnPayload);
 

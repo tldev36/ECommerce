@@ -34,7 +34,7 @@ export async function POST(req: Request) {
         ],
       },
       orderBy: { popularity: "desc" },
-      take: 8,
+      take: 10,
     });
 
     // 4️⃣ Nếu không có kết quả, fallback theo sản phẩm phổ biến
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       const fallback = await prisma.products.findMany({
         where: { is_active: true },
         orderBy: { popularity: "desc" },
-        take: 8,
+        take: 10,
       });
       return NextResponse.json(fallback);
     }

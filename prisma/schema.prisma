@@ -42,6 +42,7 @@ model products {
   region                    String[]                    @db.VarChar(100)
   popularity                Decimal?                    @db.Decimal(8, 2)
   description               String?
+  weight_gram               Int?
   cart_items                cart_items[]
   order_items               order_items[]
   categories                categories?                 @relation(fields: [category_id], references: [id], onUpdate: NoAction)

@@ -454,7 +454,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // ========== Action ==========
   const addItem = async (product: Product) => {
-    if (isLoggedIn) {
+    if (user) {
+      // ✅ Đã login → gọi API lưu DB
       const res = await axios.post<{ cart: CartItem[] }>(
         "/api/cart/add",
         { productId: product.id, quantity: 1 }
@@ -492,11 +493,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeItem = async (id: number) => {
     if (isLoggedIn) {
-    await axios.delete(`/api/cart/delete/${id}`);
-    setCart(cart.filter((i) => i.product_id !== id)); 
-  } else {
-    saveCartToCookie(cart.filter((i) => i.product_id !== id));
-  }
+      await axios.delete(`/api/cart/delete/${id}`);
+      setCart(cart.filter((i) => i.product_id !== id));
+    } else {
+      saveCartToCookie(cart.filter((i) => i.product_id !== id));
+    }
   };
 
   const updateQuantity = async (id: number, quantity: number) => {
@@ -518,10 +519,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearCart = async () => {
-    if (isLoggedIn) {
+    if (user) {
+      // ✅ Login → xóa trên DB
       await axios.delete("/api/cart/delete");
+      setCart([]);
+    } else {
+      // ❌ Guest → xóa trên cookie
+      saveCartToCookie([]);
+      setCart([]);
     }
-    saveCartToCookie([]);
   };
 
   // ========== Render Provider ==========

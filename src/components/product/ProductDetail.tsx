@@ -6,10 +6,10 @@ import { Product } from "@/types/product";
 import { useCart } from "@/context/CartContext";
 import ProductDetailRecommendations from "@/components/ProductDetailRecommendations";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { 
-  faShoppingCart, 
-  faMinus, 
-  faPlus, 
+import {
+  faShoppingCart,
+  faMinus,
+  faPlus,
   faStar,
   faCheck,
   faTruck,
@@ -19,6 +19,7 @@ import {
   faShare,
   faTag
 } from "@fortawesome/free-solid-svg-icons";
+import ProductReview from "./ProductReview";
 
 interface ProductDetailProps {
   slug: string;
@@ -86,7 +87,7 @@ export default function ProductDetail({ slug }: ProductDetailProps) {
     if (!product) return;
 
     addItem(product);
-    
+
     // Toast notification thay vì alert
     const toast = document.createElement('div');
     toast.className = 'fixed top-20 right-4 bg-green-600 text-white px-6 py-4 rounded-xl shadow-2xl z-50 animate-slide-in-right';
@@ -204,9 +205,8 @@ export default function ProductDetail({ slug }: ProductDetailProps) {
               <div className="absolute bottom-6 right-6 flex gap-2">
                 <button
                   onClick={() => setIsLiked(!isLiked)}
-                  className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
-                    isLiked ? 'bg-red-500 text-white' : 'bg-white text-gray-700 hover:bg-red-50'
-                  }`}
+                  className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${isLiked ? 'bg-red-500 text-white' : 'bg-white text-gray-700 hover:bg-red-50'
+                    }`}
                 >
                   <FontAwesomeIcon icon={faHeart} />
                 </button>
@@ -406,6 +406,10 @@ export default function ProductDetail({ slug }: ProductDetailProps) {
             </h2>
             <ProductDetailRecommendations productId={product.id} />
           </div>
+        )}
+        {/* Đánh giá sản phẩm */}
+        {product?.id && (
+          <ProductReview productId={product.id} user={user} />
         )}
       </div>
 

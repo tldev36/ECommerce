@@ -1,46 +1,32 @@
 import { NextResponse } from "next/server";
+import { GoogleGenAI } from "@google/genai";
 
-export async function POST(req: Request): Promise<NextResponse> {
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+if (!GEMINI_API_KEY) throw new Error("Chưa cấu hình GEMINI_API_KEY");
+
+export async function POST(req: Request) {
   try {
     const { message } = await req.json();
+    if (!message) return NextResponse.json({ reply: "Thiếu câu hỏi." }, { status: 400 });
 
-    if (!message) {
-      return NextResponse.json({ reply: "Thiếu nội dung tin nhắn." }, { status: 400 });
-    }
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-    const API_KEY = process.env.GOOGLE_API_KEY;
-    if (!API_KEY) {
-      return NextResponse.json({ reply: "Chưa cấu hình GOOGLE_API_KEY" }, { status: 500 });
-    }
-
-    // ✅ Dùng model đúng: gemini-2.0-flash (công khai & ổn định)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: message }],
-          },
-        ],
-      }),
+    // Gọi Gemini AI
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: message,
+      config: {
+        temperature: 0.3, // Tùy chỉnh sáng tạo
+        systemInstruction: "Bạn là trợ lý bán sản phẩm nông sản."
+      }
     });
 
-    const data = await response.json();
-
-    // Lấy text trả lời từ Gemini
-    const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      data?.error?.message ||
-      "Không có phản hồi từ Gemini.";
+    // TypeScript chưa có type sẵn cho SDK, nên ép kiểu tạm
+    const reply = (response as any)?.text || "Xin lỗi, không có phản hồi.";
 
     return NextResponse.json({ reply });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("Gemini API Error:", message);
-    return NextResponse.json({ reply: "Lỗi: " + message }, { status: 500 });
+  } catch (err: any) {
+    console.error(err);
+    return NextResponse.json({ reply: "Lỗi server: " + err.message }, { status: 500 });
   }
 }

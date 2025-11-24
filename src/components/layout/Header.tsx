@@ -211,9 +211,9 @@ export default function Header() {
 
                 {user && (
                   <>
-                    <Link href="/admin/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
+                    {/* <Link href="/admin/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
                       admin
-                    </Link>
+                    </Link> */}
                     <Link href="/customer/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-100">
                       Thông tin cá nhân
                     </Link>

@@ -101,7 +101,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto mt-8 space-y-8">
         {/* Header Section */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
@@ -276,7 +276,7 @@ export default function ProfilePage() {
               </div>
 
               {/* Address - Full Width */}
-              <div className="group md:col-span-2">
+              {/* <div className="group md:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-600 to-emerald-600 flex items-center justify-center shadow-md">
                     <FontAwesomeIcon icon={faMapMarkerAlt} className="text-white w-4 h-4" />
@@ -291,7 +291,7 @@ export default function ProfilePage() {
                   className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all outline-none hover:border-green-300"
                   placeholder="Nhập địa chỉ của bạn"
                 />
-              </div>
+              </div> */}
             </div>
 
             {/* Save Button */}

@@ -11,47 +11,43 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import Link from "next/link";
+import { 
+  TrendingUp, 
+  Package, 
+  DollarSign, 
+  ShoppingCart,
+  Award
+} from "lucide-react";
 
 // 🔹 Card Components
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`bg-white rounded-2xl shadow p-4 ${className}`}>{children}</div>;
+  return <div className={`bg-white rounded-lg shadow p-6 ${className}`}>{children}</div>;
 }
+
 function CardHeader({ children }: { children: React.ReactNode }) {
-  return <div className="mb-4 border-b pb-2">{children}</div>;
+  return <div className="mb-4">{children}</div>;
 }
-function CardTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-xl font-semibold text-gray-800">{children}</h2>;
+
+function CardTitle({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      {icon && <div className="text-gray-700">{icon}</div>}
+      <h2 className="text-lg font-semibold text-gray-800">{children}</h2>
+    </div>
+  );
 }
+
 function CardContent({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={className}>{children}</div>;
 }
 
-function Button({
-  children,
-  onClick,
-  className = "",
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  className?: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors ${className}`}
-    >
-      {children}
-    </button>
-  );
-}
-
 export default function StatisticsDashboard() {
-  const [filter, setFilter] = useState<"month" | "year">("month");
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [revenueData, setRevenueData] = useState<any[]>([]);
   const [orderData, setOrderData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Lấy tháng hiện tại
+  const currentMonth = new Date().toLocaleString('en-US', { month: 'short' });
 
   // 🔹 Lấy dữ liệu từ API
   useEffect(() => {
@@ -64,7 +60,6 @@ export default function StatisticsDashboard() {
         const [rev, ord] = await Promise.all([revRes.json(), ordRes.json()]);
         setRevenueData(rev);
         setOrderData(ord);
-        setSelectedMonth(rev[0]?.month || "Jan");
       } catch (err) {
         console.error("Lỗi khi tải dữ liệu thống kê:", err);
       } finally {
@@ -74,156 +69,203 @@ export default function StatisticsDashboard() {
     fetchData();
   }, []);
 
-  const selectedInfo = revenueData.find((item) => item.month === selectedMonth);
-  const filteredData =
-    filter === "month"
-      ? revenueData.filter((item) => item.month === selectedMonth)
-      : revenueData;
+  // Lấy dữ liệu tháng hiện tại
+  const currentMonthData = revenueData.find((item) => item.month === currentMonth);
+  const totalRevenue = revenueData.reduce((a, b) => a + b.revenue, 0);
+  const totalOrders = orderData.reduce((a, b) => a + b.value, 0);
 
-  if (loading) return <div className="p-10 text-center text-gray-600">Đang tải dữ liệu...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-gray-50 min-h-screen">
-      {/* Bộ lọc */}
-      <Card className="col-span-3">
-        <CardHeader>
-          <CardTitle>📅 Bộ lọc thống kê</CardTitle>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Dashboard Thống Kê</h1>
+          <p className="text-gray-600">Tháng {currentMonth} {new Date().getFullYear()}</p>
+        </div>
 
-          {/* <Link href="/admin/statistics">
-            <Button>Xem chi tiết thống kê</Button>
-          </Link> */}
-        </CardHeader>
-        <CardContent className="flex gap-4 items-center">
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as any)}
-            className="border p-2 rounded-lg shadow-sm"
-          >
-            <option value="month">Theo tháng</option>
-            <option value="year">Theo năm</option>
-          </select>
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          {/* Doanh thu tháng này */}
+          <Card className="border-l-4 border-green-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Doanh thu tháng này</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {(currentMonthData?.revenue || 0).toLocaleString()}₫
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </Card>
 
-          {filter === "month" && (
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="border p-2 rounded-lg shadow-sm"
-            >
-              {revenueData.map((item) => (
-                <option key={item.month} value={item.month}>
-                  {item.month}
-                </option>
-              ))}
-            </select>
-          )}
-        </CardContent>
+          {/* Tổng doanh thu */}
+          <Card className="border-l-4 border-blue-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Tổng doanh thu</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {totalRevenue.toLocaleString()}₫
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </Card>
 
-      </Card>
+          {/* Tổng đơn hàng */}
+          <Card className="border-l-4 border-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Tổng đơn hàng</p>
+                <p className="text-2xl font-bold text-gray-800">{totalOrders}</p>
+              </div>
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <ShoppingCart className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+          </Card>
 
-      {/* Tổng quan */}
-      <Card className="col-span-3">
-        <CardHeader>
-          <CardTitle>📊 Thống kê tổng quan</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-green-100 p-4 rounded-2xl text-center">
-            <p className="text-lg text-gray-600">Doanh thu</p>
-            <p className="text-2xl font-bold text-green-600">
-              {filter === "month"
-                ? `${selectedInfo?.revenue.toLocaleString()}₫`
-                : `${revenueData.reduce((a, b) => a + b.revenue, 0).toLocaleString()}₫`}
-            </p>
-          </div>
-          <div className="bg-blue-100 p-4 rounded-2xl text-center">
-            <p className="text-lg text-gray-600">Đơn hàng</p>
-            <p className="text-2xl font-bold text-blue-600">
-              {orderData.reduce((a, b) => a + b.value, 0)}
-            </p>
-          </div>
-          <div className="bg-yellow-100 p-4 rounded-2xl text-center">
-            <p className="text-lg text-gray-600">Sản phẩm nổi bật</p>
-            <p className="text-xl font-semibold text-yellow-600">
-              {selectedInfo?.bestProduct || "—"}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+          {/* Sản phẩm nổi bật */}
+          <Card className="border-l-4 border-orange-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Sản phẩm nổi bật</p>
+                <p className="text-lg font-semibold text-gray-800 truncate">
+                  {currentMonthData?.bestProduct || "—"}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Award className="w-6 h-6 text-orange-600" />
+              </div>
+            </div>
+          </Card>
+        </div>
 
-      {/* 💰 Biểu đồ doanh thu theo tháng (nâng cấp UI) */}
-      <Card className="col-span-2">
-        <CardHeader>
-          <CardTitle>
-            💰 <span>Doanh thu theo tháng</span>
-          </CardTitle>
-        </CardHeader>
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Biểu đồ doanh thu */}
+          <Card>
+            <CardHeader>
+              <CardTitle icon={<TrendingUp className="w-5 h-5 text-green-600" />}>
+                Doanh thu theo tháng
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={revenueData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    dataKey="month" 
+                    tick={{ fill: "#6b7280", fontSize: 12 }}
+                  />
+                  <YAxis
+                    tickFormatter={(v: number) => `${(v / 1_000_000).toFixed(1)}tr`}
+                    tick={{ fill: "#6b7280", fontSize: 12 }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "white",
+                      borderRadius: "8px",
+                      border: "1px solid #e5e7eb",
+                      boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                    }}
+                    formatter={(v: number) => [`${v.toLocaleString()}₫`, "Doanh thu"]}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#10b981"
+                    strokeWidth={3}
+                    dot={{ fill: "#10b981", r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
-        <CardContent className="h-80 bg-gradient-to-b from-white to-green-50 rounded-2xl p-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={revenueData} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
-              {/* Lưới nền mờ */}
-              <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" opacity={0.6} />
+          {/* Biểu đồ đơn hàng */}
+          <Card>
+            <CardHeader>
+              <CardTitle icon={<Package className="w-5 h-5 text-blue-600" />}>
+                Trạng thái đơn hàng
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={orderData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    dataKey="status" 
+                    tick={{ fill: "#6b7280", fontSize: 12 }}
+                  />
+                  <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "white",
+                      borderRadius: "8px",
+                      border: "1px solid #e5e7eb",
+                      boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                    }}
+                  />
+                  <Bar 
+                    dataKey="value" 
+                    fill="#3b82f6" 
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
 
-              {/* Trục X và Y rõ ràng */}
-              <XAxis dataKey="month" tick={{ fill: "#374151" }} axisLine={{ stroke: "#9ca3af" }} />
-              <YAxis
-                tickFormatter={(v: number) => `${(v / 1_000_000).toFixed(1)}tr`}
-                tick={{ fill: "#374151" }}
-                axisLine={{ stroke: "#9ca3af" }}
-              />
+        {/* Thống kê nhanh */}
+        {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-green-50 border border-green-200">
+            <div className="text-center">
+              <p className="text-sm text-gray-600 mb-2">Đã giao</p>
+              <p className="text-3xl font-bold text-green-600">
+                {orderData.find(o => o.status === "Đã giao")?.value || 0}
+              </p>
+            </div>
+          </Card>
 
-              {/* Tooltip tinh tế */}
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "white",
-                  borderRadius: "10px",
-                  border: "1px solid #e5e7eb",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                }}
-                labelStyle={{ fontWeight: 600, color: "#111827" }}
-                formatter={(v: number) => [`${v.toLocaleString()}₫`, "Doanh thu"]}
-              />
+          <Card className="bg-yellow-50 border border-yellow-200">
+            <div className="text-center">
+              <p className="text-sm text-gray-600 mb-2">Đang xử lý</p>
+              <p className="text-3xl font-bold text-yellow-600">
+                {orderData.find(o => o.status === "Đang xử lý")?.value || 0}
+              </p>
+            </div>
+          </Card>
 
-              {/* Gradient cho đường biểu đồ */}
-              <defs>
-                <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#16a34a" stopOpacity={0.9} />
-                  <stop offset="100%" stopColor="#bbf7d0" stopOpacity={0.3} />
-                </linearGradient>
-              </defs>
+          <Card className="bg-red-50 border border-red-200">
+            <div className="text-center">
+              <p className="text-sm text-gray-600 mb-2">Đã hủy</p>
+              <p className="text-3xl font-bold text-red-600">
+                {orderData.find(o => o.status === "Đã hủy")?.value || 0}
+              </p>
+            </div>
+          </Card>
+        </div> */}
 
-              {/* Đường biểu đồ */}
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                stroke="url(#revenueGradient)"
-                strokeWidth={4}
-                dot={{ r: 5, fill: "#16a34a", stroke: "#fff", strokeWidth: 2 }}
-                activeDot={{ r: 7, stroke: "#16a34a", strokeWidth: 3, fill: "#fff" }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-
-
-      {/* Biểu đồ trạng thái đơn hàng */}
-      <Card>
-        <CardHeader>
-          <CardTitle>📦 Trạng thái đơn hàng</CardTitle>
-        </CardHeader>
-        <CardContent className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={orderData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="status" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="value" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      </div>
     </div>
   );
 }

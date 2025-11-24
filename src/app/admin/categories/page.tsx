@@ -147,7 +147,7 @@ export default function CategoryPage() {
             <thead>
               <tr className="bg-gray-100 text-gray-700 text-left">
                 <th className="p-3 border-b">STT</th>
-                <th className="p-3 border-b text-center">Hình ảnh</th>
+                {/* <th className="p-3 border-b text-center">Hình ảnh</th> */}
                 <th className="p-3 border-b">Tên loại</th>
                 <th className="p-3 border-b">Ngày tạo</th>
                 <th className="p-3 border-b">Ngày cập nhật</th>
@@ -162,7 +162,7 @@ export default function CategoryPage() {
                   className="hover:bg-gray-50 transition duration-150"
                 >
                   <td className="p-3 border-b text-gray-700">{index + 1}</td>
-                  <td className="p-3 border-b text-center">
+                  {/* <td className="p-3 border-b text-center">
                     {c.image ? (
                       <img
                         src={`/images/categories/${c.image}`}
@@ -174,7 +174,7 @@ export default function CategoryPage() {
                         No image
                       </div>
                     )}
-                  </td>
+                  </td> */}
                   <td className="p-3 border-b font-medium text-gray-800">
                     {c.name}
                   </td>

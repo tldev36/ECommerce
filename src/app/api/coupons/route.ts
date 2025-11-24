@@ -50,7 +50,7 @@ export async function POST(req: Request) {
           : null,
       valid_from: data.valid_from ? new Date(data.valid_from) : null,
       valid_until: data.valid_until ? new Date(data.valid_until) : null,
-      status: data.status ? "1" : "0", // boolean → bit string
+      status: data.status ? true : false, // boolean
     };
 
     const newCoupon = await prisma.coupons.create({ data: payload });
