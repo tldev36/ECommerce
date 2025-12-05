@@ -6,9 +6,10 @@ interface Params {
   params: { id: string };
 }
 
-export async function GET(req: Request, { params }: Params) {
+export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const productId = Number(params.id);
+    const { id } = await context.params;
+    const productId = Number(id);
     if (!productId) throw new Error("Invalid product id");
 
     // ✅ Lấy thông tin sản phẩm hiện tại
@@ -37,7 +38,7 @@ export async function GET(req: Request, { params }: Params) {
         ],
       },
       orderBy: { popularity: "desc" },
-      take: 6,
+      take: 5,
     });
 
     // ✅ Người mua sản phẩm này cũng mua...

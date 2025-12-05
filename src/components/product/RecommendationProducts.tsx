@@ -1,39 +1,51 @@
 // app/components/product/RecommendationProducts.tsx
+"use client";
+
 import ProductCard from "@/components/product/ProductCard";
-import { prisma } from "@/lib/prisma";
-import { ProductMapper } from "@/lib/mappers/productMapper";
+import { Product } from "@/types/product";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
-export default async function RecommendationProducts() {
-  // Lấy sản phẩm nổi bật (featured = true) từ DB
-  const dbProducts = await prisma.products.findMany({
-    where: { featured: true },
-    include: { categories: true },
-    take: 5, // chỉ lấy 5 sản phẩm
-  });
+export default function RecommendationProducts() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Convert Prisma model -> Domain model
-  const products = dbProducts.map(ProductMapper.toDomain);
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        // Gọi API lấy sản phẩm
+        const res = await axios.get<Product[]>("/api/products");
+
+        const top10 = res.data.slice(0, 10);
+        setProducts(top10);
+      } catch (err) {
+        console.error("Lỗi khi tải sản phẩm đề xuất:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProducts();
+  }, []);
 
   return (
-    // <section className="max-w-7xl mx-auto px-4 py-10 space-y-6">
-    //   <h2 className="text-2xl font-semibold mb-4">Sản phẩm đề xuất</h2>
-    //   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-    //     {products.map((p) => (
-    //       <ProductCard key={p.id} product={p} />
-    //     ))}
-    //   </div>
-    // </section>
     <section className="w-full bg-white py-14">
       <div className="max-w-[1700px] mx-auto px-6 space-y-8">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-wide text-gray-900">
             Sản phẩm đề xuất
           </h2>
-          <button className="text-green-600 text-sm hover:underline">
-            Xem tất cả →
-          </button>
         </div>
 
+        {/* {loading ? (
+          <p className="text-gray-600">Đang tải...</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-7">
+            {products.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        )} */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-7">
           {products.map((p) => (
             <ProductCard key={p.id} product={p} />
@@ -41,6 +53,5 @@ export default async function RecommendationProducts() {
         </div>
       </div>
     </section>
-
   );
 }

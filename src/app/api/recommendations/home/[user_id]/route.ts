@@ -8,9 +8,14 @@ interface RecommendationResult {
     image: string;
     price: number;
     unit: string;
+    is_active?: boolean;
+    discount?: number;
+    is_new?: boolean;
+    short?: string | null;
   };
   score: number;
 }
+
 
 // ---- Tính Jaccard similarity giữa 2 array ----
 function jaccardSimilarity(a: string[], b: string[]): number {
@@ -31,19 +36,32 @@ function getProductFeatures(product: any): string[] {
 
 // ---- Hybrid Recommendation ----
 async function getRecommendations(userId: number, topK: number = 10): Promise<RecommendationResult[]> {
-  const productsData = await prisma.products.findMany();
+  const productsData = await prisma.products.findMany({ include: { categories: true } });
   const interactions = await prisma.user_product_interactions.findMany({ where: { user_id: userId } });
+
+  console.log(`🔍 User ${userId} has ${interactions.length} interactions.`);
 
   if (!interactions.length) {
     return productsData.slice(0, topK).map(p => ({
-      product: { id: p.id, name: p.name, image: p.image, price: Number(p.price), unit: p.unit },
+      product: {
+        id: p.id,
+        name: p.name,
+        image: p.image,
+        price: Number(p.price),
+        unit: p.unit,
+        is_active: p.is_active ?? undefined,
+        discount: p.discount ? Number(p.discount) : undefined,
+        is_new: p.is_new ?? undefined,
+        short: p.short ?? null,
+      },
       score: 0
     }));
+
   }
 
   const interactedProductIds = interactions.map(i => i.product_id);
 
-  // 1️⃣ Content-based score: dựa trên tags + region
+  // --- Content-based score
   const contentScores = new Map<number, number>();
   const featuresMap: Record<number, string[]> = {};
   productsData.forEach(p => {
@@ -60,7 +78,7 @@ async function getRecommendations(userId: number, topK: number = 10): Promise<Re
     });
   });
 
-  // 2️⃣ Collaborative Filtering: Cosine similarity từ weight
+  // --- Collaborative Filtering
   const allInteractions = await prisma.user_product_interactions.findMany();
   const productUserMap: Record<number, Record<number, number>> = {};
   allInteractions.forEach(i => {
@@ -83,11 +101,21 @@ async function getRecommendations(userId: number, topK: number = 10): Promise<Re
     }
   });
 
-  // 3️⃣ Hybrid score = 0.6 content + 0.4 CF
+  // --- Hybrid score + full product info
   const recommendations: RecommendationResult[] = productsData
     .filter(p => !interactedProductIds.includes(p.id))
     .map(p => ({
-      product: { id: p.id, name: p.name, image: p.image, price: Number(p.price), unit: p.unit },
+      product: {
+        id: p.id,
+        name: p.name,
+        short: p.short ?? null,
+        image: p.image,
+        price: Number(p.price),
+        unit: p.unit,
+        is_active: p.is_active !== null ? p.is_active : undefined,
+        discount: p.discount !== null && p.discount !== undefined ? Number(p.discount) : undefined,
+        is_new: p.is_new !== null ? p.is_new : undefined,
+      },
       score: 0.6 * (contentScores.get(p.id) || 0) + 0.4 * (cfScores.get(p.id) || 0)
     }))
     .sort((a, b) => b.score - a.score)
@@ -95,6 +123,7 @@ async function getRecommendations(userId: number, topK: number = 10): Promise<Re
 
   return recommendations;
 }
+
 
 // ---- Route handler ----
 export async function GET(

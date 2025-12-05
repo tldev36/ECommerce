@@ -28,6 +28,7 @@ export async function GET() {
       unit: item.products.unit,
       image: item.products.image,
       quantity: item.quantity ?? 0, 
+      discount: item.products.discount,
     }));
 
     // Trả về response

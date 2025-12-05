@@ -4,46 +4,58 @@ import dayjs from "dayjs";
 
 export async function GET() {
   try {
-    // 🔹 1. Lấy tất cả đơn hoàn thành trong 6 tháng gần nhất
+    // 1. Mốc thời gian: 6 tháng gần nhất (tính từ đầu tháng)
     const startDate = dayjs().subtract(5, "month").startOf("month").toDate();
+
+    // 2. Lấy đơn hàng thành công
     const orders = await prisma.orders.findMany({
       where: {
-        status: "completed",
+        // Hãy chắc chắn DB của bạn lưu status là 'COMPLETED' hay 'completed'
+        status: "COMPLETED", 
         created_at: { gte: startDate },
       },
       include: { order_items: true },
     });
 
-    // 🔹 2. Tạo mốc 6 tháng gần nhất (dù có hay không có đơn)
+    // 3. Tạo khung 6 tháng
     const months = Array.from({ length: 6 }).map((_, i) =>
       dayjs().subtract(5 - i, "month")
     );
 
-    // 🔹 3. Gom doanh thu theo tháng + tính tổng sản phẩm
+    // 4. Tính toán
     const revenueByMonth: Record<string, number> = {};
     const productRevenue: Record<string, number> = {};
 
     for (const order of orders) {
       const monthKey = dayjs(order.created_at).format("MMM");
-      const total = Number(order.amount);
+      const total = Number(order.amount) || 0;
+      
       revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + total;
 
-      for (const item of order.order_items) {
-        const pid = item.product_id?.toString() || "";
-        productRevenue[pid] = (productRevenue[pid] || 0) + Number(item.total_price || 0);
+      // Tính best seller
+      if (order.order_items) {
+        for (const item of order.order_items) {
+          const pid = item.product_id ? item.product_id.toString() : "unknown";
+          const itemTotal = Number(item.total_price) || 0;
+          productRevenue[pid] = (productRevenue[pid] || 0) + itemTotal;
+        }
       }
     }
 
-    // 🔹 4. Lấy tên sản phẩm để xác định best seller
-    const products = await prisma.products.findMany({
-      select: { id: true, name: true },
-    });
-    const productMap = Object.fromEntries(products.map((p) => [p.id, p.name]));
+    // 5. Tìm Best Seller chung cuộc
+    const sortedProducts = Object.entries(productRevenue).sort((a, b) => b[1] - a[1]);
+    const bestProductId = sortedProducts.length > 0 ? sortedProducts[0][0] : null;
+    let bestProductName = "Không có";
 
-    const bestProductId = Object.entries(productRevenue).sort((a, b) => b[1] - a[1])[0]?.[0];
-    const bestProductName = bestProductId ? productMap[Number(bestProductId)] : "Không có";
+    if (bestProductId && bestProductId !== "unknown") {
+      const bestProduct = await prisma.products.findUnique({
+        where: { id: Number(bestProductId) },
+        select: { name: true },
+      });
+      if (bestProduct) bestProductName = bestProduct.name;
+    }
 
-    // 🔹 5. Dựng mảng kết quả đủ 6 tháng (kể cả tháng không có doanh thu)
+    // 6. Kết quả
     const result = months.map((m) => {
       const key = m.format("MMM");
       return {
@@ -55,7 +67,7 @@ export async function GET() {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Lỗi thống kê doanh thu:", error);
-    return NextResponse.json({ error: "Không thể lấy dữ liệu doanh thu" }, { status: 500 });
+    console.error("Lỗi Revenue API:", error);
+    return NextResponse.json({ error: "Lỗi Server" }, { status: 500 });
   }
 }

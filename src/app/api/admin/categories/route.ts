@@ -6,6 +6,7 @@ import { slugify } from "@/utils/slugify"; // file util nhỏ để tạo slug
 export async function GET() {
   try {
     const data = await prisma.categories.findMany({
+      
       orderBy: { id: "desc" },
     });
     return NextResponse.json(data);
@@ -18,16 +19,55 @@ export async function GET() {
 // 🔹 Tạo mới
 export async function POST(req: Request) {
   try {
-    const { name, image, status } = await req.json();
+    const body = await req.json();
+    const { name, image, status } = body;
     const slug = slugify(name);
 
-    const newCategory = await prisma.categories.create({
-      data: { name, slug, image, status },
+    // ====== 1. VALIDATION ĐƠN GIẢN ======
+    if (!name || typeof name !== "string") {
+      return NextResponse.json(
+        { error: "Tên danh mục không hợp lệ" },
+        { status: 400 }
+      );
+    }
+
+    // ====== 2. KIỂM TRA TRÙNG TÊN ======
+    const existingCategory = await prisma.categories.findFirst({
+      where: {
+        name: {
+          equals: name,
+          mode: "insensitive", // Không phân biệt hoa thường
+        },
+      },
     });
 
-    return NextResponse.json(newCategory);
-  } catch (error) {
-    console.error("POST categories error:", error);
-    return NextResponse.json({ error: "Lỗi khi thêm mới" }, { status: 500 });
+    if (existingCategory) {
+      return NextResponse.json(
+        { error: "Tên danh mục đã tồn tại" },
+        { status: 409 } // Conflict
+      );
+    }
+
+    // ====== 3. TẠO CATEGORY ======
+    const newCategory = await prisma.categories.create({
+      data: {
+        name,
+        image: image || null,
+        slug: slug,
+        status: status ?? true, // default nếu bạn muốn
+      },
+    });
+
+    return NextResponse.json(
+      { message: "Tạo danh mục thành công", data: newCategory },
+      { status: 201 }
+    );
+  } catch (error: any) {
+    console.error("POST /api/categories error:", error);
+
+    return NextResponse.json(
+      { error: "Lỗi server khi tạo danh mục" },
+      { status: 500 }
+    );
   }
 }

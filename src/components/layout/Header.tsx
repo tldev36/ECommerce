@@ -73,7 +73,7 @@ export default function Header() {
   const navItems = [
     { name: "Trang chủ", href: "/customer/home" },
     {
-      name: "Sản phẩm",
+      name: "Danh mục",
       href: "/customer/list-product",
       subMenu: categories.map((c) => ({
         name: c.name,

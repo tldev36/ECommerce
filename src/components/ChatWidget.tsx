@@ -1,66 +1,50 @@
 "use client";
-
-import { useState } from "react";
-import { Send, X } from "lucide-react";
+import ChatBox from "@/components/ChatBox";
 
 interface ChatWidgetProps {
-  onClose?: () => void;
+  onClose: () => void;
 }
 
-type Message = { role: "user" | "bot"; text: string };
-
 export default function ChatWidget({ onClose }: ChatWidgetProps) {
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
-
-  const sendMessage = async () => {
-    if (!input.trim()) return;
-
-    const userMsg: Message = { role: "user", text: input };
-    setMessages(prev => [...prev, userMsg]);
-
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: input })
-    });
-
-    const data = await res.json();
-    const botMsg: Message = { role: "bot", text: data.reply || "Xin lỗi, tôi chưa có thông tin." };
-
-    setMessages(prev => [...prev, botMsg]);
-    setInput("");
-  };
-
   return (
-    <div className="fixed bottom-20 right-4 w-80 bg-white rounded-2xl shadow-xl flex flex-col border z-[100]">
-      <div className="flex justify-between items-center bg-blue-600 text-white p-3 rounded-t-2xl font-semibold">
-        <span>LanDuVN Chatbot 🌾</span>
-        <button onClick={onClose} className="hover:text-gray-200"><X size={18} /></button>
-      </div>
-
-      <div className="flex-1 p-3 overflow-y-auto space-y-2 max-h-96">
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`p-2 rounded-lg text-sm ${
-              m.role === "user" ? "bg-blue-100 text-right ml-10" : "bg-gray-100 text-left mr-10"
-            }`}
-          >
-            {m.text}
+    <div className="fixed bottom-24 right-6 w-[350px] h-[500px] bg-white border border-gray-200 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-fade-in-up">
+      {/* Header */}
+      <div className="flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-500 text-white p-4">
+        <div className="flex items-center gap-2">
+          {/* Avatar bot giả lập */}
+          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+            🤖
           </div>
-        ))}
+          <div className="flex flex-col">
+            <span className="font-semibold text-sm">Trợ lý Nông Sản</span>
+            <span className="text-[10px] flex items-center gap-1 opacity-90">
+              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+              Đang hoạt động
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-white/80 hover:text-white hover:bg-white/10 rounded-full p-1 transition-colors"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
       </div>
 
-      <div className="flex border-t">
-        <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Nhập câu hỏi..."
-          className="flex-1 p-2 text-sm outline-none"
-          onKeyDown={e => e.key === "Enter" && sendMessage()}
-        />
-        <button onClick={sendMessage} className="p-2 text-blue-600"><Send size={18} /></button>
+      {/* Chat content - flex-1 để chiếm hết chiều cao còn lại */}
+      <div className="flex-1 overflow-hidden relative">
+        <ChatBox />
       </div>
     </div>
   );

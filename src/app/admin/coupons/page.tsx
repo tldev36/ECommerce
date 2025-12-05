@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEdit, faTrash, faPlus, faTicket, faPercentage, faCoins, faCalendar, faToggleOn, faToggleOff } from "@fortawesome/free-solid-svg-icons";
+import { 
+  faEdit, 
+  faTrash, 
+  faPlus, 
+  faTicket, 
+  faToggleOn, 
+  faToggleOff,
+  faSearch
+} from "@fortawesome/free-solid-svg-icons";
 import CouponForm from "@/components/admin/CouponForm";
 import { Coupon } from "@/types/coupon";
 import Modal from "@/components/common/Modal";
@@ -14,7 +22,7 @@ export default function CouponsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Coupon | null>(null);
 
-  // 🟢 Lấy danh sách từ API bằng axios
+  // 🟢 Lấy danh sách từ API
   useEffect(() => {
     const fetchCoupons = async () => {
       try {
@@ -30,21 +38,19 @@ export default function CouponsPage() {
     fetchCoupons();
   }, []);
 
-  // 🟢 Thêm coupon
+  // 🟢 Logic xử lý (Giữ nguyên)
   const handleAddCoupon = (coupon: Omit<Coupon, "id">) => {
-    const newCoupon: Coupon = { ...coupon, id: Date.now() };
+    const newCoupon: Coupon = { ...coupon, id: Date.now() }; // Mock ID
     setCoupons((prev) => [...prev, newCoupon]);
     setShowModal(false);
   };
 
-  // 🟢 Cập nhật coupon
   const handleUpdateCoupon = (updated: Coupon) => {
     setCoupons((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
     setEditing(null);
     setShowModal(false);
   };
 
-  // 🟢 Xóa coupon
   const handleDelete = async (id: number) => {
     if (!confirm("Bạn có chắc muốn xóa mã này?")) return;
     try {
@@ -56,20 +62,29 @@ export default function CouponsPage() {
     }
   };
 
-  // 🟢 Toggle trạng thái
   const toggleStatus = (id: number) => {
     setCoupons((prev) => 
       prev.map((c) => c.id === id ? { ...c, status: !c.status } : c)
     );
   };
 
-  // 🟢 Kiểm tra hết hạn
   const isExpired = (validUntil?: string | null) => {
     if (!validUntil) return false;
     return new Date(validUntil) < new Date();
   };
 
-  // 🟢 Thống kê
+  // Helper format tiền tệ
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+  };
+
+  // Helper format ngày
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return "Không thời hạn";
+    return new Date(dateString).toLocaleDateString("vi-VN");
+  };
+
+  // 🟢 Thống kê (Giữ nguyên vì hữu ích)
   const stats = {
     total: coupons.length,
     active: coupons.filter(c => c.status).length,
@@ -77,17 +92,20 @@ export default function CouponsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 font-sans">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-indigo-600 rounded-3xl shadow-xl p-8 mb-8 text-white">
+        
+        {/* Header Section */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 mb-6 border border-gray-100">
           <div className="flex flex-wrap justify-between items-center gap-4">
             <div>
-              <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
-                <FontAwesomeIcon icon={faTicket} />
+              <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                <span className="bg-indigo-100 p-2 rounded-lg text-indigo-600">
+                    <FontAwesomeIcon icon={faTicket} />
+                </span>
                 Quản lý mã giảm giá
               </h1>
-              <p className="text-indigo-100 text-lg">Tạo và quản lý các chương trình khuyến mãi</p>
+              <p className="text-gray-500 mt-1 text-sm">Quản lý các chương trình khuyến mãi hiện có</p>
             </div>
             
             <button
@@ -95,160 +113,167 @@ export default function CouponsPage() {
                 setEditing(null);
                 setShowModal(true);
               }}
-              className="flex items-center gap-2 px-6 py-3 bg-white text-indigo-600 rounded-xl hover:bg-indigo-50 shadow-lg hover:shadow-xl transition-all duration-300 font-semibold transform hover:scale-105"
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-md hover:shadow-lg transition-all duration-200 font-medium text-sm"
             >
               <FontAwesomeIcon icon={faPlus} />
               Tạo mã mới
             </button>
           </div>
 
-          {/* Stats cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30">
-              <div className="text-3xl font-bold">{stats.total}</div>
-              <div className="text-indigo-100">Tổng số mã</div>
+          {/* Mini Stats Row */}
+          <div className="grid grid-cols-3 gap-4 mt-6 border-t pt-4">
+            <div className="px-4 py-2 border-r last:border-0">
+                <span className="text-gray-500 text-xs uppercase font-semibold">Tổng mã</span>
+                <div className="text-2xl font-bold text-gray-800">{stats.total}</div>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30">
-              <div className="text-3xl font-bold text-emerald-300">{stats.active}</div>
-              <div className="text-indigo-100">Đang hoạt động</div>
+            <div className="px-4 py-2 border-r last:border-0">
+                <span className="text-gray-500 text-xs uppercase font-semibold">Đang chạy</span>
+                <div className="text-2xl font-bold text-emerald-600">{stats.active}</div>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30">
-              <div className="text-3xl font-bold text-rose-300">{stats.expired}</div>
-              <div className="text-indigo-100">Đã hết hạn</div>
+            <div className="px-4 py-2">
+                <span className="text-gray-500 text-xs uppercase font-semibold">Hết hạn</span>
+                <div className="text-2xl font-bold text-rose-500">{stats.expired}</div>
             </div>
           </div>
         </div>
 
-        {/* Coupons Grid */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
-            <p className="text-gray-600 mt-4">Đang tải dữ liệu...</p>
-          </div>
-        ) : coupons.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-            <FontAwesomeIcon icon={faTicket} className="text-6xl text-gray-300 mb-4" />
-            <p className="text-gray-500 text-lg">Chưa có mã giảm giá nào. Hãy tạo mã đầu tiên!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {coupons.map((c) => {
-              const expired = isExpired(c.valid_until);
-              return (
-                <div
-                  key={c.id}
-                  className={`bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 ${
-                    expired ? 'border-gray-300 opacity-75' : 
-                    c.status ? 'border-emerald-400' : 'border-rose-400'
-                  } transform hover:-translate-y-1`}
-                >
-                  {/* Card Header */}
-                  <div className={`p-6 ${
-                    expired ? 'bg-gray-500' :
-                    c.status ? 'bg-emerald-500' : 'bg-rose-500'
-                  }`}>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="text-white text-2xl font-bold font-mono tracking-wider mb-1">
-                          {c.code}
-                        </div>
-                        <div className="text-white/90 text-sm">
-                          {c.description || "Không có mô tả"}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => toggleStatus(c.id!)}
-                        className={`p-2 rounded-lg ${
-                          c.status ? 'bg-white/20' : 'bg-white/30'
-                        } hover:bg-white/40 transition`}
-                        title={c.status ? "Tắt mã" : "Bật mã"}
-                      >
-                        <FontAwesomeIcon 
-                          icon={c.status ? faToggleOn : faToggleOff} 
-                          className="text-white text-xl"
-                        />
-                      </button>
-                    </div>
-                  </div>
+        {/* Table Section */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div>
+              <p className="text-gray-500 mt-2 text-sm">Đang tải dữ liệu...</p>
+            </div>
+          ) : coupons.length === 0 ? (
+            <div className="text-center py-16">
+               <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FontAwesomeIcon icon={faTicket} className="text-2xl text-gray-400" />
+               </div>
+              <p className="text-gray-600 font-medium">Chưa có mã giảm giá nào</p>
+              <p className="text-gray-400 text-sm mt-1">Hãy bắt đầu bằng cách tạo mã mới</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 text-xs uppercase tracking-wider">
+                    <th className="p-4 font-semibold">Mã Code / Mô tả</th>
+                    <th className="p-4 font-semibold">Giá trị giảm</th>
+                    <th className="p-4 font-semibold">Giới hạn & Thời gian</th>
+                    <th className="p-4 font-semibold text-center">Trạng thái</th>
+                    <th className="p-4 font-semibold text-right">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {coupons.map((c) => {
+                    const expired = isExpired(c.valid_until);
+                    const isActive = c.status && !expired;
 
-                  {/* Card Body */}
-                  <div className="p-6 space-y-4">
-                    {/* Discount Info */}
-                    <div className="flex gap-4">
-                      {c.discount_percent! > 0 && (
-                        <div className="flex-1 bg-indigo-50 rounded-xl p-4 border-2 border-indigo-200">
-                          <FontAwesomeIcon icon={faPercentage} className="text-indigo-600 mb-2" />
-                          <div className="text-3xl font-bold text-indigo-700">
-                            {c.discount_percent}%
+                    return (
+                      <tr 
+                        key={c.id} 
+                        className="hover:bg-indigo-50/30 transition-colors duration-150 group"
+                      >
+                        {/* Cột 1: Code & Info */}
+                        <td className="p-4 align-top">
+                          <div className="flex flex-col">
+                            <span className="font-mono font-bold text-indigo-700 text-lg">{c.code}</span>
+                            <span className="text-gray-500 text-sm truncate max-w-[200px]" title={c.description || ""}>
+                                {c.description || "Không có mô tả"}
+                            </span>
                           </div>
-                          <div className="text-indigo-600 text-sm">Giảm giá</div>
-                        </div>
-                      )}
-                      {c.discount_amount! > 0 && (
-                        <div className="flex-1 bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
-                          <FontAwesomeIcon icon={faCoins} className="text-gray-600 mb-2" />
-                          <div className="text-2xl font-bold text-gray-700">
-                            {c.discount_amount!.toLocaleString("vi-VN")}₫
+                        </td>
+
+                        {/* Cột 2: Discount */}
+                        <td className="p-4 align-middle">
+                            {c.discount_percent! > 0 ? (
+                                <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    Giảm {c.discount_percent}%
+                                </div>
+                            ) : (
+                                <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Giảm {formatCurrency(c.discount_amount || 0)}
+                                </div>
+                            )}
+                        </td>
+
+                        {/* Cột 3: Limits & Date */}
+                        <td className="p-4 align-middle">
+                            <div className="text-sm text-gray-600 space-y-1">
+                                <div>
+                                    <span className="font-medium text-gray-400 text-xs uppercase">Sử dụng: </span>
+                                    {c.usage_limit ? `${c.usage_limit} lần` : "Không giới hạn"}
+                                </div>
+                                <div>
+                                    <span className="font-medium text-gray-400 text-xs uppercase">Hạn: </span>
+                                    {formatDate(c.valid_until)}
+                                </div>
+                            </div>
+                        </td>
+
+                        {/* Cột 4: Status */}
+                        <td className="p-4 align-middle text-center">
+                            {expired ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                                    Hết hạn
+                                </span>
+                            ) : c.status ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    Đang chạy
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800 border border-rose-200">
+                                    Đang tắt
+                                </span>
+                            )}
+                        </td>
+
+                        {/* Cột 5: Actions */}
+                        <td className="p-4 align-middle text-right">
+                          <div className="flex items-center justify-end gap-2">
+                             {/* Toggle Button */}
+                            <button
+                                onClick={() => toggleStatus(c.id!)}
+                                className={`p-2 rounded-lg transition-colors ${
+                                    c.status ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-100'
+                                }`}
+                                title={c.status ? "Tắt mã" : "Bật mã"}
+                            >
+                                <FontAwesomeIcon icon={c.status ? faToggleOn : faToggleOff} className="text-xl" />
+                            </button>
+
+                            {/* Edit Button */}
+                            <button
+                              onClick={() => {
+                                setEditing(c);
+                                setShowModal(true);
+                              }}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Chỉnh sửa"
+                            >
+                              <FontAwesomeIcon icon={faEdit} />
+                            </button>
+
+                            {/* Delete Button */}
+                            <button
+                              onClick={() => handleDelete(c.id!)}
+                              className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Xóa"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
                           </div>
-                          <div className="text-gray-600 text-sm">Giảm tiền</div>
-                        </div>
-                      )}
-                    </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
-                    {/* Usage Limit */}
-                    {c.usage_limit && (
-                      <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-200">
-                        <div className="text-indigo-800 text-sm font-semibold">
-                          Giới hạn: {c.usage_limit} lượt sử dụng
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Date Range */}
-                    <div className="bg-gray-50 rounded-xl p-3 space-y-2">
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <FontAwesomeIcon icon={faCalendar} className="text-gray-500" />
-                        <span className="text-sm">
-                          {c.valid_from ? new Date(c.valid_from).toLocaleDateString("vi-VN") : "N/A"}
-                          {" → "}
-                          {c.valid_until ? new Date(c.valid_until).toLocaleDateString("vi-VN") : "N/A"}
-                        </span>
-                      </div>
-                      {expired && (
-                        <div className="text-rose-600 text-xs font-semibold bg-rose-50 px-2 py-1 rounded">
-                          ⚠️ Đã hết hạn
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 pt-2">
-                      <button
-                        onClick={() => {
-                          setEditing(c);
-                          setShowModal(true);
-                        }}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors font-medium shadow-md hover:shadow-lg"
-                      >
-                        <FontAwesomeIcon icon={faEdit} />
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => handleDelete(c.id!)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-colors font-medium shadow-md hover:shadow-lg"
-                      >
-                        <FontAwesomeIcon icon={faTrash} />
-                        Xóa
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Modal thêm/sửa */}
+        {/* Modal form */}
         <Modal
           open={showModal}
           onClose={() => setShowModal(false)}

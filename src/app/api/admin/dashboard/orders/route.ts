@@ -3,19 +3,24 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const statusCounts = await prisma.orders.groupBy({
-      by: ["status"],
-      _count: { status: true },
+    // Gom nhóm theo trạng thái và đếm số lượng
+    const ordersGrouped = await prisma.orders.groupBy({
+      by: ['status'],
+      _count: {
+        id: true, // Đếm id
+      },
     });
 
-    const result = statusCounts.map((item) => ({
-      status: item.status,
-      value: item._count.status,
+    // Map dữ liệu để Recharts dễ đọc (cần key 'status' và 'value')
+    // Ví dụ output: [{ status: 'completed', value: 10 }, { status: 'pending', value: 5 }]
+    const formattedData = ordersGrouped.map((item) => ({
+      status: item.status, 
+      value: item._count.id,
     }));
 
-    return NextResponse.json(result);
+    return NextResponse.json(formattedData);
   } catch (error) {
-    console.error("Lỗi thống kê đơn hàng:", error);
-    return NextResponse.json({ error: "Không thể lấy dữ liệu đơn hàng" }, { status: 500 });
+    console.error("Lỗi Orders API:", error);
+    return NextResponse.json([], { status: 500 });
   }
 }

@@ -65,6 +65,7 @@ export async function PUT(
       unit: item.products.unit,
       image: item.products.image,
       quantity: item.quantity,
+      discount: item.products.discount,
     }));
 
     return NextResponse.json({ cart });

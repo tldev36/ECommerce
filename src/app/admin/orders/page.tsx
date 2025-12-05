@@ -27,6 +27,33 @@ export default function InvoiceReviewPage() {
     })();
   }, []);
 
+  async function handleUpdateStatus(orderId: number, newStatus: string) {
+    try {
+      // Gọi API cập nhật (dùng API update-status mới mà ta đã viết)
+      const res = await axios.put<{ success: boolean }>(`/api/admin/orders/update-status`, {
+        orderId: orderId,
+        newStatus: newStatus
+      });
+
+      if (res.data.success) {
+        // Cập nhật State danh sách
+        setOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+        );
+        // toast.success(`Đã cập nhật sang: ${newStatus}`);
+      }
+    } catch (err) {
+      console.error(err);
+      // toast.error("Lỗi cập nhật trạng thái");
+    }
+  }
+
+  // Hàm hủy riêng vì cần confirm đặc biệt
+  async function handleCancelOrder(orderId: number) {
+    if (!confirm("Hủy đơn này sẽ hoàn lại kho?")) return;
+    handleUpdateStatus(orderId, 'CANCELLED');
+  }
+
   if (loading)
     return (
       <div className="text-center py-20 text-gray-500 text-lg animate-pulse">
@@ -38,9 +65,20 @@ export default function InvoiceReviewPage() {
     <div className="min-h-screen bg-gray-50 p-6">
       <h1 className="text-3xl font-bold mb-8 text-gray-800">📦 Quản lý đơn hàng</h1>
 
-      <InvoiceList orders={orders} onSelect={setSelected} />
+      <InvoiceList
+        orders={orders}
+        onSelect={(order) => setSelected(order)}
+        onUpdateStatus={handleUpdateStatus} 
+        onCancel={handleCancelOrder}
+      />
 
-      {selected && <InvoiceModal order={selected} onClose={() => setSelected(null)} />}
+      {
+        selected && <InvoiceModal
+          order={selected}
+          onClose={() => setSelected(null)}
+          // onUpdate={handleOrderUpdate}
+        />
+      }
     </div>
   );
 }

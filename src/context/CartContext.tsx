@@ -365,7 +365,7 @@ interface CartContextType {
   loadingUser: boolean;
 
   setCart: (items: CartItem[]) => void;
-  addItem: (product: Product) => void;
+  addItem: (product: Product, quantity?: number) => void;
   removeItem: (id: number) => void;
   updateQuantity: (id: number, quantity: number) => void;
   clearCart: () => void;
@@ -453,23 +453,71 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ========== Action ==========
-  const addItem = async (product: Product) => {
+  // const addItem = async (product: Product) => {
+  //   if (user) {
+  //     // ✅ Đã login → gọi API lưu DB
+  //     const res = await axios.post<{ cart: CartItem[] }>(
+  //       "/api/cart/add",
+  //       { productId: product.id, quantity: 1 }
+  //     );
+  //     if (res.data.cart) setCart(res.data.cart);
+  //   } else {
+  //     const exist = cart.find((i) => i.product_id === product.id);
+  //     if (exist) {
+  //       saveCartToCookie(
+  //         cart.map((i) =>
+  //           i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+  //         )
+  //       );
+  //     } else {
+  //       saveCartToCookie([
+  //         ...cart,
+  //         {
+  //           product_id: product.id,
+  //           name: product.name,
+  //           slug: product.slug,
+  //           price: product.price || 0,
+  //           unit: product.unit || "0gram",
+  //           image: product.image || "",
+  //           quantity: 1,
+  //         },
+  //       ]);
+  //     }
+  //   }
+  // };
+
+  // Trong file CartContext.tsx (hoặc nơi bạn khai báo addItem)
+
+  const addItem = async (product: Product, quantity: number = 1) => { // 👈 Thêm tham số quantity, default = 1
     if (user) {
       // ✅ Đã login → gọi API lưu DB
-      const res = await axios.post<{ cart: CartItem[] }>(
-        "/api/cart/add",
-        { productId: product.id, quantity: 1 }
-      );
-      if (res.data.cart) setCart(res.data.cart);
+      try {
+        const res = await axios.post<{ cart: CartItem[] }>(
+          "/api/cart/add",
+          {
+            productId: product.id,
+            quantity: quantity // 👈 Sử dụng số lượng khách chọn thay vì số 1
+          }
+        );
+        if (res.data.cart) setCart(res.data.cart);
+      } catch (error) {
+        console.error("Lỗi thêm vào giỏ hàng:", error);
+      }
     } else {
+      // ❌ Chưa login → Lưu Cookie
       const exist = cart.find((i) => i.product_id === product.id);
+
       if (exist) {
+        // Nếu đã có, cộng dồn số lượng cũ + số lượng mới chọn
         saveCartToCookie(
           cart.map((i) =>
-            i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+            i.product_id === product.id
+              ? { ...i, quantity: i.quantity + quantity } // 👈 Cộng thêm quantity
+              : i
           )
         );
       } else {
+        // Nếu chưa có, thêm mới với số lượng đã chọn
         saveCartToCookie([
           ...cart,
           {
@@ -479,12 +527,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             price: product.price || 0,
             unit: product.unit || "0gram",
             image: product.image || "",
-            quantity: 1,
+            quantity: quantity, // 👈 Sử dụng quantity khách chọn
+            discount: product.discount || 0, // Thêm trường dicount_percent nếu cần
           },
         ]);
       }
     }
   };
+
 
   const setCartFromServer = (items: CartItem[]) => {
     setCart(items);

@@ -63,8 +63,11 @@ export default function ListProduct({ slug }: ListProductProps) {
   }, []);
 
   const handleCategoryChange = (catSlug: string) => {
-    setSelectedCategory(catSlug); // cập nhật state
+    setSelectedCategory(catSlug);
 
+    const params = new URLSearchParams(window.location.search);
+    params.delete("search");
+    window.history.replaceState({}, "", `${window.location.pathname}`);
   };
 
   const filteredProducts = products.filter((p) => {
@@ -72,12 +75,14 @@ export default function ListProduct({ slug }: ListProductProps) {
       selectedCategory === "tat-ca" ||
       p.categories?.slug === selectedCategory;
 
-    // chuẩn hóa cả tên sản phẩm và từ khóa search
     const normalizedName = removeVietnameseTones(p.name);
     const normalizedSearch = removeVietnameseTones(search);
 
-    const matchSearch = normalizedName.includes(normalizedSearch);
-    return matchCategory && matchSearch;
+    // Nếu không nhập search → chỉ lọc theo category
+    if (!normalizedSearch.trim()) return matchCategory;
+
+    // Nếu có search → lọc theo cả 2
+    return matchCategory && normalizedName.includes(normalizedSearch);
   });
 
   return (

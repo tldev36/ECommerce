@@ -16,6 +16,21 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       select: { image: true },
     });
 
+    // kiểm tra trùng tên
+    const existingCategory = await prisma.categories.findFirst({
+      where: {
+        name: {
+          equals: name,
+          mode: "insensitive",
+        },
+        id: { not: id }, // loại trừ chính nó
+      },
+    });
+
+    if (existingCategory) {
+      return NextResponse.json({ error: "Tên loại sản phẩm đã được sử dụng" }, { status: 400 });
+    }
+
     // Cập nhật DB
     const updated = await prisma.categories.update({
       where: { id },
@@ -47,7 +62,7 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
 
     if (productCount > 0) {
       return NextResponse.json(
-        { error: `Không thể xóa! Đang có ${productCount} sản phẩm sử dụng danh mục này.` },
+        { error: `Không thể xóa loại đang có chứa sản phẩm.` },
         { status: 400 }
       );
     }

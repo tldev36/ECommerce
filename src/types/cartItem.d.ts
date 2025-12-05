@@ -8,6 +8,6 @@ export interface CartItem {
   image: string;
   quantity: number;
   unit?: string; // in grams
-  dicount_percent?: number;
+  discount: number;
   weight_gram?: number;
 }

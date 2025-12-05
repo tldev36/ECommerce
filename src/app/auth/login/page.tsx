@@ -69,7 +69,7 @@ export default function LoginPage() {
       });
 
       if (!res.ok) {
-        setError("root", { message: "Email hoặc mật khẩu không đúng!" });
+        setError("root", { message: "Email hoặc mật khẩu không chính xác" });
         return;
       }
 

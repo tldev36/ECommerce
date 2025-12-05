@@ -81,6 +81,7 @@ export async function POST(req: Request) {
         shipping_address: address_detail,
         ward_address: address.ward_name,
         district_address: address.district_name,
+        payment_status: "UNPAID",
       },
     });
 

@@ -13,12 +13,11 @@ import ShippingFeeCalculator from "@/components/checkout/ShippingFeeCalculator";
 import { ZaloPayCreateOrderResponse } from "@/types/ZaloPayCreateOrderResponse";
 import type { PaymentMethod } from "@/types/order";
 import { formatFullAddress } from "@/lib/formatFullAddress";
-import { 
-  MapPin, 
-  ShoppingCart, 
-  Plus, 
-  Edit2, 
-  Trash2,
+import {
+  MapPin,
+  ShoppingCart,
+  Plus,
+  Edit2,
   Package,
   CreditCard,
   AlertCircle,
@@ -49,41 +48,21 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
   const [showInvoice, setShowInvoice] = useState(false);
   const [orderData, setOrderData] = useState<any>(null);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  // const [showConfirmDialog, setShowConfirmDialog] = useState(false); // Biến này chưa dùng, tạm comment
   const [user, setUser] = useState<any>(null);
   const [addressLoading, setAddressLoading] = useState(true);
 
+  // 🔥 STATE MỚI: Lưu thông tin giá mới nhất từ Server
+  const [productDetails, setProductDetails] = useState<Record<number, any>>({});
+  const [isRefreshing, setIsRefreshing] = useState(true);
+
   const selectedAddr = addresses.find((a) => a.id === selectedAddress);
 
-  // Tính tổng tiền
-  const total = useMemo(
-    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    [cart]
-  );
-
-  const finalTotal = useMemo(
-    () => Math.max(total - discount + shippingFee, 0),
-    [total, discount, shippingFee]
-  );
-
-  // Tổng trọng lượng (gram)
-  const totalWeight = useMemo(() => {
-    return cart.reduce((sum, item) => {
-      let w = 0;
-      if (typeof item.unit === "string") {
-        const value = parseFloat(item.unit);
-        if (item.unit.toLowerCase().includes("kg")) w = value * 1000;
-        else if (item.unit.toLowerCase().includes("g")) w = value;
-      } else if (typeof item.unit === "number") w = item.unit;
-      return sum + w * (item.quantity || 1);
-    }, 0);
-  }, [cart]);
-
-  // Fetch user
+  // 1. Fetch User
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch("/api/auth/me");
+        const res = await fetch("/api/auth/me?t=" + Date.now()); // Thêm time để tránh cache
         const data = await res.json();
         setUser(data.user || null);
       } catch (err) {
@@ -94,7 +73,7 @@ export default function CheckoutPage() {
     fetchUser();
   }, []);
 
-  // Fetch addresses
+  // 2. Fetch Addresses
   useEffect(() => {
     const fetchAddresses = async () => {
       setAddressLoading(true);
@@ -102,6 +81,7 @@ export default function CheckoutPage() {
         const res = await fetch("/api/shipping-address", {
           method: "GET",
           credentials: "include",
+          headers: { 'Cache-Control': 'no-cache' } // Thêm header tránh cache
         });
         const result = await res.json();
         if (res.ok) setAddresses(result.addresses || []);
@@ -114,7 +94,7 @@ export default function CheckoutPage() {
     fetchAddresses();
   }, []);
 
-  // Auto select default address
+  // 3. Auto select default address
   useEffect(() => {
     if (addresses.length > 0 && selectedAddress === null) {
       const defaultAddr = addresses.find((a) => a.default === true);
@@ -122,34 +102,136 @@ export default function CheckoutPage() {
     }
   }, [addresses, selectedAddress]);
 
-  // Address handlers
+  // 4. 🔥 FETCH GIÁ MỚI NHẤT (QUAN TRỌNG) 🔥
+  useEffect(() => {
+    const fetchLatestProductData = async () => {
+      if (!cart || cart.length === 0) {
+        setIsRefreshing(false);
+        return;
+      }
+
+      setIsRefreshing(true);
+      
+      const promises = cart.map(async (item) => {
+          if (!item.product_id) return null;
+          try {
+              // Gọi API với tham số nocache để ép lấy dữ liệu mới
+              const res = await fetch(`/api/cart/products/${item.product_id}`, {
+                  cache: 'no-store',
+                  headers: { 'Cache-Control': 'no-cache' }
+              });
+              
+              if (!res.ok) return null;
+              const data = await res.json();
+              return data.product || data.data || data; 
+          } catch (err) {
+              console.error(`Lỗi cập nhật giá SP ${item.product_id}:`, err);
+              return null;
+          }
+      });
+
+      const results = await Promise.all(promises);
+      
+      const detailsMap: Record<number, any> = {};
+      results.forEach((prod) => {
+          if (prod && prod.id) {
+              detailsMap[prod.id] = prod; 
+          }
+      });
+      
+      setProductDetails(detailsMap);
+      setIsRefreshing(false);
+    };
+
+    fetchLatestProductData();
+  }, [cart]);
+
+  // 5. 🔥 HỢP NHẤT DỮ LIỆU (Merge Cart cũ + Giá mới)
+  const displayCart = useMemo(() => {
+    return cart.map(item => {
+        const freshData = productDetails[Number(item.product_id)];
+        
+        // Logic ưu tiên lấy dữ liệu mới từ server
+        let freshDiscount = 0;
+        let freshPrice = Number(item.price);
+        
+        if (freshData) {
+            freshPrice = Number(freshData.price);
+            freshDiscount = Number(freshData.discount || freshData.dicount_percent || 0);
+        } else {
+             // Fallback nếu chưa load xong
+             freshDiscount = Number(item.discount || item.discount || 0);
+        }
+
+        return {
+            ...item,
+            price: freshPrice,
+            discount: freshDiscount,
+            name: freshData ? freshData.name : item.name,
+            image: freshData ? freshData.image : item.image,
+            unit: freshData ? freshData.unit : item.unit, // Cập nhật cả đơn vị để tính trọng lượng
+        };
+    });
+  }, [cart, productDetails]);
+
+
+  // 6. Tính tổng tiền hàng (Dựa trên displayCart - dữ liệu mới nhất)
+  const total = useMemo(() => {
+    return displayCart.reduce((sum, item) => {
+      const originalPrice = Number(item.price);
+      const percent = item.discount || 0;
+      const priceAfterDiscount = percent > 0
+        ? originalPrice * (1 - percent / 100)
+        : originalPrice;
+      return sum + (priceAfterDiscount * item.quantity);
+    }, 0);
+  }, [displayCart]);
+
+  const finalTotal = useMemo(
+    () => Math.max(total - discount + shippingFee, 0),
+    [total, discount, shippingFee]
+  );
+
+  // Tổng trọng lượng (Dựa trên displayCart)
+  const totalWeight = useMemo(() => {
+    return displayCart.reduce((sum, item) => {
+      let w = 0;
+      if (typeof item.unit === "string") {
+        const value = parseFloat(item.unit);
+        if (item.unit.toLowerCase().includes("kg")) w = value * 1000;
+        else if (item.unit.toLowerCase().includes("g")) w = value;
+      } else if (typeof item.unit === "number") w = item.unit;
+      return sum + w * (item.quantity || 1);
+    }, 0);
+  }, [displayCart]);
+
+
+  // Handlers cho Address
   const handleAddAddress = (newAddress: Address) => {
     setAddresses((prev) => [...prev, newAddress]);
     setShowForm(false);
   };
-
   const handleUpdateAddress = (updated: Address) => {
     setAddresses((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
     setEditingAddress(null);
     setShowForm(false);
   };
-
   const handleDeleteAddress = (id: number) => {
     setAddresses((prev) => prev.filter((a) => a.id !== id));
     if (selectedAddress === id) setSelectedAddress(null);
   };
 
-  // Apply coupon
+  // Handler Coupon
   const handleApplyCoupon = async (code: string) => {
     try {
       setCouponLoading(true);
-      const res = await axios.post<{ 
-        valid: boolean; 
-        message?: string; 
-        discount_percent?: number; 
-        discount_amount?: number 
+      const res = await axios.post<{
+        valid: boolean;
+        message?: string;
+        discount_percent?: number;
+        discount_amount?: number
       }>("/api/coupons/validate", { code });
-      
+
       const result = res.data;
 
       if (!result.valid) {
@@ -171,7 +253,7 @@ export default function CheckoutPage() {
     }
   };
 
-  // Place order
+  // Place Order Handler
   const handlePlaceOrder = async () => {
     if (!user) {
       alert("⚠️ Bạn cần đăng nhập trước khi đặt hàng!");
@@ -184,10 +266,11 @@ export default function CheckoutPage() {
 
     setLoading(true);
 
+    // 🔥 GỬI DỮ LIỆU MỚI NHẤT (displayCart) LÊN SERVER
     const orderInfo = {
       user_id: user.id,
       shipping_address_id: selectedAddr.id,
-      items: cart,
+      items: displayCart, // Dùng displayCart thay vì cart cũ
       total_amount: finalTotal,
       payment_method: paymentMethod,
       ship_amount: shippingFee,
@@ -218,7 +301,6 @@ export default function CheckoutPage() {
 
       if (res.data.success) {
         setOrderData(res.data.order);
-        setShowConfirmDialog(false);
         alert("🎉 Đặt hàng thành công!");
         clearCart();
         router.push("/customer/home");
@@ -233,7 +315,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // Loading state
   if (loadingUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
@@ -245,7 +326,6 @@ export default function CheckoutPage() {
     );
   }
 
-  // Empty cart state
   if (cart.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50 px-4">
@@ -337,11 +417,10 @@ export default function CheckoutPage() {
                     <div
                       key={addr.id}
                       onClick={() => setSelectedAddress(addr.id!)}
-                      className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                        selectedAddress === addr.id
-                          ? "border-green-600 bg-green-50 shadow-md"
-                          : "border-gray-200 hover:border-green-400 hover:shadow-sm"
-                      }`}
+                      className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${selectedAddress === addr.id
+                        ? "border-green-600 bg-green-50 shadow-md"
+                        : "border-gray-200 hover:border-green-400 hover:shadow-sm"
+                        }`}
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
@@ -416,9 +495,9 @@ export default function CheckoutPage() {
                 </div>
                 <h2 className="text-xl font-bold text-gray-800">Phương thức thanh toán</h2>
               </div>
-              <PaymentMethodSelector 
-                selectedMethod={paymentMethod} 
-                onChange={setPaymentMethod} 
+              <PaymentMethodSelector
+                selectedMethod={paymentMethod}
+                onChange={setPaymentMethod}
               />
             </div>
           </div>
@@ -431,6 +510,7 @@ export default function CheckoutPage() {
                   <Package className="w-6 h-6 text-purple-600" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-800">Đơn hàng</h2>
+                {isRefreshing && <span className="ml-auto text-xs text-green-600 italic animate-pulse">Cập nhật giá...</span>}
               </div>
 
               <ShippingFeeCalculator
@@ -445,17 +525,42 @@ export default function CheckoutPage() {
               />
 
               <div className="space-y-3 mb-6 max-h-64 overflow-y-auto">
-                {cart.map((item) => (
-                  <div key={item.product_id} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-800 text-sm">{item.name}</p>
-                      <p className="text-xs text-gray-500">Số lượng: {item.quantity}</p>
+                {displayCart.map((item) => {
+                  // Sử dụng displayCart (đã có giá mới nhất)
+                  const percent = item.discount || 0;
+                  const originalPrice = Number(item.price);
+                  const discountedPrice = percent > 0
+                    ? originalPrice * (1 - percent / 100)
+                    : originalPrice;
+                  const lineTotal = discountedPrice * item.quantity;
+
+                  return (
+                    <div key={item.product_id} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800 text-sm line-clamp-1">{item.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs text-gray-500">x{item.quantity}</p>
+                          {percent > 0 && (
+                            <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded font-bold">
+                              -{percent}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-800 text-sm">
+                          {lineTotal.toLocaleString()} ₫
+                        </p>
+                        {percent > 0 && (
+                          <p className="text-xs text-gray-400 line-through">
+                            {(originalPrice * item.quantity).toLocaleString()} ₫
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <p className="font-semibold text-gray-800 text-sm">
-                      {(item.price * item.quantity).toLocaleString()} ₫
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <CouponInput onApply={handleApplyCoupon} loading={couponLoading} />
@@ -486,7 +591,7 @@ export default function CheckoutPage() {
 
               <button
                 onClick={handlePlaceOrder}
-                disabled={loading || !selectedAddr}
+                disabled={loading || !selectedAddr || isRefreshing}
                 className="w-full mt-6 bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
               >
                 {loading ? (

@@ -99,18 +99,18 @@ export default function Header() {
     return (
         <header className="flex items-center justify-between bg-white h-16 p-4 border-b border-gray-200">
             {/* Search */}
-            <div className="flex items-center bg-gray-100 rounded-md px-3 py-1 flex-1 max-w-md">
+            {/* <div className="flex items-center bg-gray-100 rounded-md px-3 py-1 flex-1 max-w-md">
                 <FontAwesomeIcon icon={faMagnifyingGlass} className="text-gray-500 w-5 h-5" />
                 <input
                     type="text"
                     placeholder="Tìm kiếm..."
                     className="ml-2 bg-transparent outline-none w-full text-gray-700 placeholder-gray-400"
                 />
-            </div>
-
+            </div> */}
+            <div className="flex items-center px-3 py-1 flex-1 max-w-md"></div>
             {/* Notification & Avatar */}
             <div className="flex items-center gap-4 ml-4">
-                {/* Notification */}
+                {/* Notification
                 <div className="relative" ref={notifRef}>
                     <button
                         onClick={() => setIsNotifOpen(!isNotifOpen)}
@@ -127,13 +127,13 @@ export default function Header() {
                     {isNotifOpen && (
                         <div className="absolute right-0 mt-2 w-96 bg-white border border-gray-200 shadow-lg rounded-md z-50">
                             <div className="p-4">
-                                {/* Header */}
+                                Header
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-sm font-semibold text-gray-700">Thông báo</h3>
                                     <button className="text-blue-500 text-xs hover:underline">Đánh dấu tất cả đã đọc</button>
                                 </div>
 
-                                {/* Group: Today */}
+                                Group: Today
                                 <div className="mb-2 overflow-auto">
                                     <p className="text-xs font-semibold text-gray-400 mb-2 mt-2">HÔM NAY</p>
                                     <ul className="space-y-2 max-h-64 ">
@@ -155,7 +155,7 @@ export default function Header() {
                                     </ul>
                                 </div>
 
-                                {/* Footer */}
+                                Footer
                                 <div className="pt-2 border-t border-gray-100">
                                     <button className="text-orange-500 text-sm hover:underline w-full text-left">
                                         Xóa tất cả thông báo
@@ -164,7 +164,7 @@ export default function Header() {
                             </div>
                         </div>
                     )}
-                </div>
+                </div> */}
 
                 {/* Avatar */}
                 <div className="relative" ref={avatarRef}>

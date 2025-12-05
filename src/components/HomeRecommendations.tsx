@@ -57,11 +57,12 @@ export default function HomeRecommendations() {
 
           // ✅ Cung cấp type "HybridApiResponse" cho axios
           const res = await axios.get<HybridApiResponse>(endpoint);
+          console.log("Hybrid recommendations data:", res.data);
 
           // ✅ Giờ 'res.data' đã được type-safe
           // Chúng ta bóc tách product từ mảng recommendations
           productsData = res.data.recommendations.map(r => r.product);
-
+          console.log("productsData 1 ", productsData);
         } else {
           // --- TRƯỜNG HỢP 2: KHÁCH (GỌI POPULAR) ---
           const endpoint = "/api/products/popular";
@@ -69,11 +70,11 @@ export default function HomeRecommendations() {
 
           // ✅ Cung cấp type "Product[]" cho axios
           const res = await axios.get<Product[]>(endpoint);
-
+          console.log("Popular products data:", res.data);
           // ✅ 'res.data' chính là mảng Product[]
           productsData = res.data;
         }
-
+        console.log("productsData 2 ", productsData);
         setProducts(productsData);
 
       } catch (err) {
@@ -90,9 +91,13 @@ export default function HomeRecommendations() {
   // 🟡 3️⃣ UI hiển thị
   if (loading) {
     return (
-      <p className="text-center text-gray-500 mt-4 animate-pulse">
-        Đang tải gợi ý cho bạn...
-      </p>
+      <section className="w-full bg-white py-14">
+        <div className="max-w-[1700px] mx-auto px-6 space-y-8">
+          <div className="flex items-center justify-between">
+            <p className="text-gray-600">Đang tải...</p>
+          </div>
+        </div>
+      </section >
     );
   }
 
@@ -109,7 +114,7 @@ export default function HomeRecommendations() {
       <div className="max-w-[1700px] mx-auto px-6 space-y-8">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-wide text-gray-900">
-            🎯 Gợi ý dành riêng cho bạn
+            Sản phẩm có thể bạn quan tâm
           </h2>
         </div>
 

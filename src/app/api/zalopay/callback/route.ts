@@ -36,7 +36,7 @@ export async function GET(req: Request) {
     // 🔹 Cập nhật trạng thái đơn hàng trong DB
     const order = await prisma.orders.update({
       where: { order_code: app_trans_id },
-      data: { status: status === "1" ? "success" : "failed" },
+      data: { payment_status: status === "1" ? "PAID" : "UNPAID" },
     });
 
     return NextResponse.json({ success: true, order_id: order.id, status: order.status });

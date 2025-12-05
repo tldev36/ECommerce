@@ -11,7 +11,7 @@ datasource db {
 model categories {
   id         Int        @id @default(autoincrement())
   name       String
-  slug       String     @unique
+  slug       String?    @unique
   image      String?
   status     Boolean    @default(true)
   created_at DateTime?  @default(now()) @db.Timestamp(6)
@@ -43,6 +43,7 @@ model products {
   popularity                Decimal?                    @db.Decimal(8, 2)
   description               String?
   weight_gram               Int?
+  embedding                 Unsupported("vector")?
   cart_items                cart_items[]
   order_items               order_items[]
   categories                categories?                 @relation(fields: [category_id], references: [id], onUpdate: NoAction)
@@ -100,6 +101,8 @@ model orders {
   district_address String?
   ship_amount      Decimal?      @db.Decimal(12, 2)
   note             String?
+  payment_status   String?
+  completed_at     DateTime?     @db.Date
   order_items      order_items[]
   users            users?        @relation(fields: [user_id], references: [id], onUpdate: NoAction)
 }
@@ -235,4 +238,14 @@ model user_product_interactions {
   created_at         DateTime? @default(now()) @db.Timestamp(6)
   products           products  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users              users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model chatlog {
+  id        Int       @id @default(autoincrement())
+  userId    Int?
+  question  String?
+  answer    String?
+  source    String?
+  createdAt DateTime? @db.Timestamp(6)
 }
