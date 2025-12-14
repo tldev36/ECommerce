@@ -1,213 +1,313 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Legend,
+} from "recharts";
+import { CalendarRange, DollarSign, Package, TrendingUp } from "lucide-react";
+import OrdersTable from "@/components/admin/OrdersTable";
+import { OrderRow } from "@/types";
 
-interface Invoice {
-  id: number;
-  order_code: string;
-  customer?: string;
-  date: string;
-  total: number;
-  status: string;
-  payment_method: string;
-}
+type TopProd = { product_id: number | null; name: string; quantity: number };
+type ChartPoint = { month: string; label: string; revenue: number };
 
-export default function StatisticsPage() {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [filtered, setFiltered] = useState<Invoice[]>([]);
+export default function AdminStatisticsPage() {
+  // --- STATE ---
   const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
   const [year, setYear] = useState<number>(new Date().getFullYear());
-  const [status, setStatus] = useState<string>("all");
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
 
-  // 🧠 Lấy dữ liệu thật từ API
+  // ✅ CỐ ĐỊNH TRẠNG THÁI LÀ 'completed' (Thanh toán thành công)
+  const FIXED_STATUS = "completed";
+
+  const [search, setSearch] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [summary, setSummary] = useState<{
+    totalRevenue: number;
+    totalOrders: number;
+    completedRate: number;
+    chartData: ChartPoint[];
+    topProducts: TopProd[];
+  } | null>(null);
+
+  const [ordersList, setOrdersList] = useState<OrderRow[]>([]);
+  const [page, setPage] = useState<number>(1);
+  const perPage = 10;
+  const [totalOrdersCount, setTotalOrdersCount] = useState<number>(0);
+
+  // --- API CALLS ---
+
+  // 1. Lấy dữ liệu tổng quan & biểu đồ
   useEffect(() => {
-    async function fetchData() {
+    const fetchSummary = async () => {
       try {
         setLoading(true);
-        const res = await fetch("/api/admin/statistics/list-order");
+        const params = new URLSearchParams({
+          month: String(month),
+          year: String(year),
+          status: FIXED_STATUS, // ✅ Luôn gửi 'completed'
+          search: search || "",
+        });
+        const res = await fetch(`/api/admin/demochart/revenue?${params.toString()}`);
         const data = await res.json();
+
         if (data.success) {
-          const orders = data.orders.map((o: any) => ({
-            id: o.id,
-            order_code: o.order_code,
-            customer: o.user_id ? `User #${o.user_id}` : "Khách lẻ",
-            date: o.created_at,
-            total: o.amount,
-            status: o.status,
-            payment_method: o.payment_method,
-          }));
-          setInvoices(orders);
+          setSummary({
+            totalRevenue: data.totalRevenue,
+            totalOrders: data.totalOrders,
+            completedRate: data.completedRate,
+            chartData: data.chartData,
+            topProducts: data.topProducts,
+          });
         }
       } catch (err) {
-        console.error("Lỗi tải dữ liệu:", err);
+        console.error("Fetch summary error", err);
       } finally {
         setLoading(false);
       }
-    }
-    fetchData();
-  }, []);
+    };
 
-  // 🔍 Lọc dữ liệu theo tháng, năm, trạng thái, tìm kiếm
+    const timeoutId = setTimeout(() => {
+      fetchSummary();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [month, year, search]); // Bỏ dependency 'status' vì nó cố định
+
+  // 2. Lấy danh sách đơn hàng (Table)
   useEffect(() => {
-    let filteredList = invoices;
+    const fetchOrders = async () => {
+      try {
+        const params = new URLSearchParams({
+          month: String(month),
+          year: String(year),
+          status: FIXED_STATUS, // ✅ Luôn gửi 'completed'
+          search: search || "",
+          page: String(page),
+          perPage: String(perPage),
+        });
+        const res = await fetch(`/api/admin/demochart/orders?${params.toString()}`);
+        const data = await res.json();
+        console.log("Fetched orders:", data);
+        if (data.success) {
+          setOrdersList(data.orders);
+          setTotalOrdersCount(data.total || 0);
+        } else {
+          setOrdersList([]);
+          setTotalOrdersCount(0);
+        }
+      } catch (err) {
+        console.error("Fetch orders error", err);
+      }
+    };
 
-    filteredList = filteredList.filter((inv) => {
-      const d = new Date(inv.date);
-      return d.getMonth() + 1 === month && d.getFullYear() === year;
-    });
+    const timeoutId = setTimeout(() => {
+      fetchOrders();
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [month, year, search, page]);
 
-    if (status !== "all") filteredList = filteredList.filter((inv) => inv.status === status);
+  // --- HANDLERS ---
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    setPage(1);
+  };
 
-    if (search.trim() !== "") {
-      filteredList = filteredList.filter(
-        (inv) =>
-          inv.order_code.toLowerCase().includes(search.toLowerCase()) ||
-          inv.customer?.toLowerCase().includes(search.toLowerCase())
-      );
-    }
+  // ✅ Đã xóa handleStatusChange vì không còn dùng
 
-    setFiltered(filteredList);
-  }, [invoices, month, year, status, search]);
-
-  const totalRevenue = filtered.reduce((sum, inv) => sum + inv.total, 0);
-  const totalOrders = filtered.length;
-  const completedOrders = filtered.filter((i) => i.status === "completed").length;
+  const topProducts = summary?.topProducts ?? [];
+  const chartData = summary?.chartData ?? [];
+  const totalRevenue = summary?.totalRevenue ?? 0;
+  const totalOrders = summary?.totalOrders ?? 0;
+  const completedRate = summary?.completedRate ?? 0;
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">
-        📊 Thống kê chi tiết hóa đơn
-      </h1>
+    <div className="p-4 md:p-8 bg-gray-50 min-h-screen font-sans space-y-8">
 
-      {/* Bộ lọc */}
-      <div className="bg-white shadow rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-4 justify-between">
-        <div className="flex flex-wrap items-center gap-4">
-          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="border p-2 rounded-lg">
-            {Array.from({ length: 12 }, (_, i) => (
-              <option key={i + 1} value={i + 1}>
-                Tháng {i + 1}
-              </option>
-            ))}
-          </select>
-
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="border p-2 rounded-lg">
-            {[2024, 2025, 2026].map((y) => (
-              <option key={y} value={y}>
-                Năm {y}
-              </option>
-            ))}
-          </select>
-
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="border p-2 rounded-lg">
-            <option value="all">Tất cả trạng thái</option>
-            <option value="pending">Chờ xử lý</option>
-            <option value="processing">Đang xử lý</option>
-            <option value="completed">Hoàn thành</option>
-            <option value="cancelled">Đã hủy</option>
-          </select>
-
-          <input
-            type="text"
-            placeholder="🔍 Tìm kiếm mã đơn hoặc tên khách hàng..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="border p-2 rounded-lg w-64"
-          />
-
-          <button
-            onClick={() => setSearch("")}
-            className="bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200 transition"
-          >
-            Làm mới
-          </button>
+      {/* --- HEADER --- */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <TrendingUp className="text-blue-600" /> Thống kê doanh thu
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">Chỉ hiển thị các đơn hàng đã thanh toán thành công</p>
         </div>
 
-        {/* Nút xuất Excel */}
-        <button
-          onClick={() => alert("Chức năng xuất Excel đang được phát triển!")}
-          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
-        >
-          <Download size={18} />
-          Xuất Excel
-        </button>
-      </div>
-
-      {/* Tổng kết nhanh */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-green-100 p-4 rounded-xl text-center">
-          <p className="text-gray-600">Tổng doanh thu</p>
-          <p className="text-2xl font-bold text-green-700">
-            {totalRevenue.toLocaleString()}₫
-          </p>
-        </div>
-        <div className="bg-blue-100 p-4 rounded-xl text-center">
-          <p className="text-gray-600">Tổng số đơn</p>
-          <p className="text-2xl font-bold text-blue-700">{totalOrders}</p>
-        </div>
-        <div className="bg-yellow-100 p-4 rounded-xl text-center">
-          <p className="text-gray-600">Đơn hoàn thành</p>
-          <p className="text-2xl font-bold text-yellow-700">{completedOrders}</p>
-        </div>
-      </div>
-
-      {/* Bảng dữ liệu */}
-      <div className="bg-white shadow rounded-2xl overflow-x-auto">
-        {loading ? (
-          <div className="p-10 text-center text-gray-500 flex items-center justify-center gap-2">
-            <Loader2 className="animate-spin" /> Đang tải dữ liệu...
+        {/* TIME FILTER */}
+        <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3">
+          <div className="flex items-center gap-2 px-2">
+            <CalendarRange className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Kỳ báo cáo:</span>
           </div>
-        ) : (
-          <table className="w-full border-collapse">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="text-left p-3 border-b">Mã đơn</th>
-                <th className="text-left p-3 border-b">Khách hàng</th>
-                <th className="text-left p-3 border-b">Ngày tạo</th>
-                <th className="text-right p-3 border-b">Tổng tiền</th>
-                <th className="text-center p-3 border-b">Trạng thái</th>
-                <th className="text-center p-3 border-b">Thanh toán</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length > 0 ? (
-                filtered.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-gray-50 transition-colors border-b">
-                    <td className="p-3 font-medium">{inv.order_code}</td>
-                    <td className="p-3">{inv.customer}</td>
-                    <td className="p-3">{new Date(inv.date).toLocaleDateString("vi-VN")}</td>
-                    <td className="p-3 text-right">{inv.total.toLocaleString()}₫</td>
-                    <td className="p-3 text-center">
-                      <span
-                        className={`px-2 py-1 rounded-full text-sm ${
-                          inv.status === "completed"
-                            ? "bg-green-100 text-green-700"
-                            : inv.status === "pending"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : inv.status === "processing"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {inv.status}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center capitalize">{inv.payment_method}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="text-center py-6 text-gray-500">
-                    Không có dữ liệu phù hợp.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
+
+          <select
+            value={month}
+            onChange={(e) => setMonth(Number(e.target.value))}
+            className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 cursor-pointer hover:bg-gray-100 transition"
+          >
+            {Array.from({ length: 12 }).map((_, i) => (
+              <option key={i} value={i + 1}>Tháng {i + 1}</option>
+            ))}
+          </select>
+
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 cursor-pointer hover:bg-gray-100 transition"
+          >
+            {Array.from({ length: 5 }).map((_, i) => {
+              const y = new Date().getFullYear() - 2 + i;
+              return <option key={y} value={y}>{y}</option>;
+            })}
+          </select>
+        </div>
       </div>
+
+      {/* --- SUMMARY CARDS --- */}
+      {/* ... (Giữ nguyên phần Charts & Cards) ... */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between hover:shadow-md transition-shadow">
+          <div>
+            <p className="text-sm font-medium text-gray-500 mb-1">Tổng doanh thu</p>
+            <h3 className="text-3xl font-bold text-gray-800">
+              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalRevenue)}
+            </h3>
+          </div>
+          <div className="p-4 bg-green-50 rounded-full">
+            <DollarSign className="w-8 h-8 text-green-600" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between hover:shadow-md transition-shadow">
+          <div>
+            <p className="text-sm font-medium text-gray-500 mb-1">Đơn thành công</p>
+            <h3 className="text-3xl font-bold text-gray-800">{totalOrders}</h3>
+          </div>
+          <div className="p-4 bg-blue-50 rounded-full">
+            <Package className="w-8 h-8 text-blue-600" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between hover:shadow-md transition-shadow">
+          <div>
+            <p className="text-sm font-medium text-gray-500 mb-1">Tỷ lệ hoàn thành</p>
+            <h3 className="text-3xl font-bold text-gray-800">{completedRate}%</h3>
+          </div>
+          <div className="p-4 bg-yellow-50 rounded-full relative">
+            <div className="absolute inset-0 rounded-full border-4 border-yellow-200 opacity-25" />
+            <span className="text-lg font-bold text-yellow-600">{completedRate}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* --- CHARTS --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[400px]">
+        {/* Left: Line Chart */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Biểu đồ doanh thu thực tế (6 tháng)</h3>
+          <div className="flex-1 w-full min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <XAxis
+                  dataKey="label"
+                  tickFormatter={(v) => String(v).split(" ")[0]}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#6b7280', fontSize: 12 }}
+                  dy={10}
+                />
+                <YAxis
+                  tickFormatter={(v) => `${(Number(v) / 1000000).toFixed(0)}Tr`}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#6b7280', fontSize: 12 }}
+                />
+                <Tooltip
+                  formatter={(v: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v)}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  name="Doanh thu"
+                  dataKey="revenue"
+                  stroke="#3b82f6"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: "#3b82f6", strokeWidth: 2, stroke: "#fff" }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Right: Bar Chart */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Top 5 Sản phẩm bán chạy</h3>
+          <div className="flex-1 w-full min-h-0">
+            {topProducts.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-gray-400 italic">
+                Chưa có dữ liệu
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topProducts} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={100}
+                    tick={{ fontSize: 11 }}
+                    interval={0}
+                  />
+                  <Tooltip cursor={{ fill: 'transparent' }} />
+                  <Bar
+                    dataKey="quantity"
+                    name="Số lượng"
+                    fill="#8b5cf6"
+                    radius={[0, 4, 4, 0]}
+                    barSize={20}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+      </div>
+      {/* --- ORDERS TABLE --- */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
+          <h3 className="text-lg font-semibold text-gray-800">
+            Danh sách đơn hàng đã hoàn thành
+          </h3>
+
+        </div>
+
+        <OrdersTable
+          ordersList={ordersList}
+          loading={loading}
+          page={page}
+          perPage={perPage}
+          search={search}
+          totalOrdersCount={totalOrdersCount}
+          onSearchChange={(v) => handleSearchChange(v)}
+          onPageChange={(p) => setPage(p)}
+          onView={(order) => console.log("Xem chi tiết", order)}
+        />
+
+      </div>
+
+
     </div>
   );
 }

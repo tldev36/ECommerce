@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell
 } from "recharts";
 import { TrendingUp, Package, DollarSign, ShoppingCart } from "lucide-react";
 
@@ -63,8 +63,8 @@ export default function StatisticsDashboard() {
   const totalRevenue = revenueData.reduce((a, b) => a + (b.revenue || 0), 0);
 
   // 2. Doanh thu tháng hiện tại (Lấy phần tử cuối cùng của mảng 6 tháng)
-  const currentMonthData = revenueData.length > 0 
-    ? revenueData[revenueData.length - 1] 
+  const currentMonthData = revenueData.length > 0
+    ? revenueData[revenueData.length - 1]
     : { revenue: 0 };
 
   // 3. Tổng đơn hàng (Cộng dồn tất cả trạng thái)
@@ -84,7 +84,7 @@ export default function StatisticsDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Bảng điều khiển</h1>
@@ -93,7 +93,7 @@ export default function StatisticsDashboard() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          
+
           {/* Doanh thu tháng này */}
           <Card className="border-l-4 border-green-500">
             <div className="flex items-center justify-between">
@@ -130,7 +130,7 @@ export default function StatisticsDashboard() {
               <div>
                 <p className="text-sm text-gray-600 mb-1">Tổng đơn hàng</p>
                 <p className="text-2xl font-bold text-gray-800">
-                    {totalOrders} {/* Đã fix lỗi hiển thị 0 */}
+                  {totalOrders} {/* Đã fix lỗi hiển thị 0 */}
                 </p>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -142,7 +142,7 @@ export default function StatisticsDashboard() {
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
+
           {/* Biểu đồ doanh thu */}
           <Card>
             <CardHeader>
@@ -156,18 +156,18 @@ export default function StatisticsDashboard() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="month" tick={{ fill: "#6b7280", fontSize: 12 }} padding={{ left: 10, right: 10 }} />
                   <YAxis tickFormatter={(v) => `${(v / 1000000).toFixed(0)}tr`} tick={{ fill: "#6b7280", fontSize: 12 }} />
-                  <Tooltip 
+                  <Tooltip
                     formatter={(v: number) => [`${v.toLocaleString()}₫`, "Doanh thu"]}
                     contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb" }}
                   />
-                  <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} dot={{r: 4}} />
+                  <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
           {/* Biểu đồ đơn hàng */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle icon={<Package className="w-5 h-5 text-blue-600" />}>
                 Trạng thái đơn hàng
@@ -177,10 +177,79 @@ export default function StatisticsDashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={orderData} layout="horizontal">
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis dataKey="status" tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={false} tickLine={false} />
+
+                  👇 SỬA 1: dataKey="name" để lấy tên Tiếng Việt từ API
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fill: "#6b7280", fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+
                   <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={false} tickLine={false} />
                   <Tooltip cursor={{ fill: '#f3f4f6' }} contentStyle={{ borderRadius: "8px" }} />
-                  <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+
+                  👇 SỬA 2: Bỏ fill cứng, map Cell để lấy màu dynamic
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
+                    {orderData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card> */}
+          <Card className="w-full"> {/* Đảm bảo Card full width container */}
+            <CardHeader>
+              <CardTitle icon={<Package className="w-5 h-5 text-blue-600" />}>
+                Trạng thái đơn hàng
+              </CardTitle>
+            </CardHeader>
+
+            {/* 👇 SỬA 1: Chiều cao linh hoạt (mobile thấp hơn 1 chút), giảm padding trên mobile */}
+            <CardContent className="h-64 sm:h-80 p-2 sm:p-6">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={orderData}
+                  layout="horizontal"
+                  // 👇 SỬA 2: Tinh chỉnh margin để tận dụng tối đa không gian trên mobile
+                  margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+
+                  <XAxis
+                    dataKey="name"
+                    // 👇 SỬA 3: Font chữ nhỏ hơn trên mobile (10px), desktop (12px)
+                    tick={{ fill: "#6b7280", fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                    // Giúp hiển thị hết các nhãn nếu có thể
+                    interval={0}
+                  // Nếu tên dài quá, có thể thêm angle={-45} textAnchor="end" height={60}
+                  />
+
+                  <YAxis
+                    tick={{ fill: "#6b7280", fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                    // Cho phép số nguyên
+                    allowDecimals={false}
+                  />
+
+                  <Tooltip
+                    cursor={{ fill: '#f3f4f6' }}
+                    contentStyle={{ borderRadius: "8px", fontSize: "12px" }}
+                  />
+
+                  {/* 👇 SỬA 4: Dùng maxBarSize thay vì barSize cứng. 
+            Trên mobile cột sẽ tự nhỏ lại, trên desktop max là 40px */}
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                    {orderData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>

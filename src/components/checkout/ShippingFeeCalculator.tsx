@@ -119,7 +119,7 @@ export default function ShippingFeeCalculator({
                   {result.shop?.name || "Cửa hàng"}
                 </p>
                 <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                  {result.shop?.address || "Địa chỉ không xác định"}
+                  {result.shop?.address || "Lê Hồng Phong, Thủ Dầu Một, Hồ Chí Minh"}
                 </p>
               </div>
             </div>

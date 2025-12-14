@@ -22,7 +22,7 @@ export const ORDER_STATUS = {
   // ✨ MỚI THÊM VÀO ĐÂY
   PROCESSING: {
     code: 'PROCESSING',
-    label: 'Đang xử lý',
+    label: 'Xác nhận',
     description: 'Admin/Kho đã xác nhận. Nhân viên đang nhặt hàng, đóng hộp. Khách không thể hủy.',
     color: '#0EA5E9', // Xanh da trời (Sky Blue) - Màu của sự hoạt động tích cực
     systemActions: [

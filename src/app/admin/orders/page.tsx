@@ -18,6 +18,7 @@ export default function InvoiceReviewPage() {
         const res = await axios.get<{ success: boolean; orders: Order[] }>("/api/admin/orders", {
           withCredentials: true,
         });
+        console.log(res.data);
         if (res.data.success) setOrders(res.data.orders);
       } catch (err) {
         console.error("⚠️ Lỗi tải đơn hàng:", err);
@@ -27,12 +28,15 @@ export default function InvoiceReviewPage() {
     })();
   }, []);
 
-  async function handleUpdateStatus(orderId: number, newStatus: string) {
+  async function handleUpdateStatus(orderId: number, newStatus: string, paymentStatus: string) {
     try {
+
+      console.log("Dữ liệu gửi đi:", { orderId, newStatus, paymentStatus });
       // Gọi API cập nhật (dùng API update-status mới mà ta đã viết)
       const res = await axios.put<{ success: boolean }>(`/api/admin/orders/update-status`, {
         orderId: orderId,
-        newStatus: newStatus
+        newStatus: newStatus,
+        paymentStatus: paymentStatus
       });
 
       if (res.data.success) {
@@ -51,7 +55,7 @@ export default function InvoiceReviewPage() {
   // Hàm hủy riêng vì cần confirm đặc biệt
   async function handleCancelOrder(orderId: number) {
     if (!confirm("Hủy đơn này sẽ hoàn lại kho?")) return;
-    handleUpdateStatus(orderId, 'CANCELLED');
+    handleUpdateStatus(orderId, 'CANCELLED', 'UNPAID');
   }
 
   if (loading)

@@ -13,7 +13,7 @@ import { ORDER_STATUS, ORDER_STATUS_LIST } from "@/config/order-status.config";
 interface InvoiceListProps {
   orders: Order[];
   onSelect: (order: Order) => void;
-  onUpdateStatus: (orderId: number, newStatus: string) => void;
+  onUpdateStatus: (orderId: number, newStatus: string, paymentStatus: string) => void;
   onCancel: (orderId: number) => void;
 }
 
@@ -201,7 +201,7 @@ export default function InvoiceList({
 
                         {/* Nút hành động nhanh dựa trên trạng thái */}
                         {config.code === 'PENDING' && (
-                          <button onClick={() => { onUpdateStatus(order.id,'PROCESSING'); }} className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors shadow-sm" title="Duyệt đơn hàng">
+                          <button onClick={() => { onUpdateStatus(order.id,'PROCESSING', order.payment_status); }} className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors shadow-sm" title="Duyệt đơn hàng">
                             <CheckCircle className="w-4 h-4" />
                           </button>
                         )}
@@ -213,16 +213,18 @@ export default function InvoiceList({
                         )} */}
 
                         {config.code === 'PROCESSING' && (
-                          <button onClick={() => { onUpdateStatus(order.id,'SHIPPING'); }} className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors shadow-sm" title="Giao vận chuyển">
+                          <button onClick={() => { onUpdateStatus(order.id,'SHIPPING', order.payment_status); }} className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors shadow-sm" title="Giao vận chuyển">
                             <Truck className="w-4 h-4" />
                           </button>
                         )}
 
                         {config.code === 'SHIPPING' && (
-                          <button onClick={() => { onUpdateStatus(order.id ,'COMPLETED'); }} className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shadow-sm" title="Hoàn tất đơn">
+                          <button onClick={() => { onUpdateStatus(order.id ,'COMPLETED', order.payment_status); }} className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shadow-sm" title="Hoàn tất đơn">
                             <PackageCheck className="w-4 h-4" />
                           </button>
                         )}
+
+
 
                         {/* Nút Hủy: Hiện khi chưa Hoàn thành và chưa Hủy */}
                         {config.code !== 'COMPLETED' && config.code !== 'CANCELLED' && (

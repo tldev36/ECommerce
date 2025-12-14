@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { deleteImageFile } from "@/utils/deleteImageFile";
+import { de } from "zod/v4/locales";
+import { describe } from "node:test";
 
 // 🟢 CẬP NHẬT SẢN PHẨM
 export async function PUT(
@@ -48,6 +50,7 @@ export async function PUT(
       is_best_seller: Boolean(body.is_best_seller),
       featured: Boolean(body.featured),
       is_active: Boolean(body.is_active),
+      description: body.description || "",
       
       // Cập nhật thời gian
       updated_at: new Date(),

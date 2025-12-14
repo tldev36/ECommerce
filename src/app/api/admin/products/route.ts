@@ -51,7 +51,7 @@ export async function POST(req: Request) {
         is_new: Boolean(data.is_new),
         is_best_seller: Boolean(data.is_best_seller),
         is_active: data.is_active ?? true,
-
+        description: data.description || "",
         // Xử lý số lượng
         discount: Number(data.discount) || 0,
         stock_quantity: Number(data.stock_quantity) || 0,

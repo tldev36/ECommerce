@@ -49,6 +49,8 @@ export default function HomeRecommendations() {
       try {
         setLoading(true);
         let productsData: Product[] = []; // Biến tạm để chứa kết quả
+        
+        console.log("user1111 ", user);
 
         if (user?.id) {
           // --- TRƯỜNG HỢP 1: ĐÃ ĐĂNG NHẬP (GỌI HYBRID) ---

@@ -44,50 +44,47 @@ export const sendOrderConfirmationEmail = async ({
     },
   });
 
-  // 2. 🔥 CẬP NHẬT: Tính lại Subtotal dựa trên giá thực tế (sau khi trừ giảm giá từng món)
+  // 2. Tính lại Subtotal (logic giữ nguyên)
   const subTotal = items.reduce((sum, item) => {
     const originalPrice = Number(item.price);
     const discountPercent = Number(item.discount || 0);
-    // Tính giá sau giảm của 1 sản phẩm
     const finalPrice = discountPercent > 0
       ? originalPrice * (1 - discountPercent / 100)
       : originalPrice;
-
     return sum + (finalPrice * Number(item.quantity));
   }, 0);
 
-  // 3. 🔥 CẬP NHẬT: Hiển thị giá cũ/mới trong bảng HTML
+  // 3. Tạo HTML danh sách sản phẩm (Style Green)
   const itemsHtml = items
     .map((item) => {
       const originalPrice = Number(item.price);
       const discountPercent = Number(item.discount || 0);
       const hasDiscount = discountPercent > 0;
 
-      // Tính giá sau giảm để hiển thị cột Thành tiền
       const finalUnitPrice = hasDiscount
         ? originalPrice * (1 - discountPercent / 100)
         : originalPrice;
 
       const lineTotal = finalUnitPrice * Number(item.quantity);
 
-      // Logic hiển thị cột Đơn giá: Nếu có giảm thì hiện 2 dòng (Cũ gạch ngang, Mới màu đỏ)
+      // Hiển thị giá: Giảm giá dùng màu Cam/Đỏ nhẹ để nổi bật trên nền xanh, hoặc dùng xanh đậm
       const priceDisplay = hasDiscount
-        ? `<div><span style="text-decoration: line-through; color: #999; font-size: 11px;">${originalPrice.toLocaleString('vi-VN')} đ</span></div>
-               <div style="color: #d32f2f; font-weight: bold;">${finalUnitPrice.toLocaleString('vi-VN')} đ <span style="font-size: 10px; background: #ffebee; padding: 1px 3px; border-radius: 3px;">-${discountPercent}%</span></div>`
-        : `${originalPrice.toLocaleString('vi-VN')} đ`;
+        ? `<div><span style="text-decoration: line-through; color: #9e9e9e; font-size: 11px;">${originalPrice.toLocaleString('vi-VN')} đ</span></div>
+           <div style="color: #2e7d32; font-weight: bold;">${finalUnitPrice.toLocaleString('vi-VN')} đ <span style="font-size: 10px; background: #e8f5e9; color: #2e7d32; padding: 1px 4px; border-radius: 3px; border: 1px solid #c8e6c9;">-${discountPercent}%</span></div>`
+        : `<span style="color: #333;">${originalPrice.toLocaleString('vi-VN')} đ</span>`;
 
       return `
         <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #ddd;">
-                ${item.name}
+            <td style="padding: 12px 8px; border-bottom: 1px solid #c8e6c9;">
+                <span style="color: #333; font-weight: 500;">${item.name}</span>
             </td>
-            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">
+            <td style="padding: 12px 8px; border-bottom: 1px solid #c8e6c9; text-align: center; color: #555;">
                 ${item.quantity}
             </td>
-            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">
+            <td style="padding: 12px 8px; border-bottom: 1px solid #c8e6c9; text-align: right;">
                 ${priceDisplay}
             </td>
-            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right; font-weight: 500;">
+            <td style="padding: 12px 8px; border-bottom: 1px solid #c8e6c9; text-align: right; font-weight: 600; color: #2e7d32;">
                 ${lineTotal.toLocaleString('vi-VN')} đ
             </td>
         </tr>
@@ -95,29 +92,34 @@ export const sendOrderConfirmationEmail = async ({
     })
     .join("");
 
-  // 4. Gửi mail
+  // 4. Gửi mail với giao diện GREEN
   await transporter.sendMail({
     from: `"Nông Sản Việt" <${process.env.SMTP_USER}>`,
     to,
-    subject: `Xác nhận đơn hàng #${orderCode}`,
+    subject: `[Nông Sản Store] Xác nhận đơn hàng #${orderCode}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
-        <div style="background-color: #2e7d32; padding: 20px; text-align: center;">
-            <h2 style="color: #fff; margin: 0;">Cảm ơn bạn đã đặt hàng!</h2>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #a5d6a7; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
+        
+        <div style="background-color: #2e7d32; padding: 25px; text-align: center;">
+            <h2 style="color: #fff; margin: 0; font-size: 24px;">Đặt Hàng Thành Công!</h2>
+            <p style="color: #e8f5e9; margin: 5px 0 0 0; font-size: 14px;">Cảm ơn bạn đã tin dùng nông sản sạch</p>
         </div>
         
-        <div style="padding: 20px;">
-            <p>Xin chào <strong>${customerName}</strong>,</p>
-            <p>Đơn hàng <strong>${orderCode}</strong> của bạn đã được tiếp nhận và đang trong quá trình xử lý.</p>
+        <div style="padding: 25px;">
+            <p style="color: #333;">Xin chào <strong>${customerName}</strong>,</p>
+            <p style="color: #555; line-height: 1.5;">Đơn hàng <strong style="color: #2e7d32;">${orderCode}</strong> của bạn đã được tiếp nhận. Chúng tôi sẽ sớm liên hệ để giao hàng.</p>
             
-            <h3 style="color: #333; border-bottom: 2px solid #2e7d32; padding-bottom: 5px; margin-top: 20px;">Chi tiết đơn hàng</h3>
+            <div style="margin-top: 25px; margin-bottom: 15px; border-bottom: 2px solid #2e7d32;">
+                <h3 style="color: #2e7d32; margin: 0 0 5px 0; font-size: 16px; text-transform: uppercase;">Chi tiết đơn hàng</h3>
+            </div>
+
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
             <thead>
-                <tr style="background-color: #f9f9f9; color: #333;">
-                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Sản phẩm</th>
-                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">SL</th>
-                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Đơn giá</th>
-                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Thành tiền</th>
+                <tr style="background-color: #e8f5e9;">
+                <th style="padding: 10px; text-align: left; color: #2e7d32; font-size: 13px; text-transform: uppercase;">Sản phẩm</th>
+                <th style="padding: 10px; text-align: center; color: #2e7d32; font-size: 13px; text-transform: uppercase;">SL</th>
+                <th style="padding: 10px; text-align: right; color: #2e7d32; font-size: 13px; text-transform: uppercase;">Đơn giá</th>
+                <th style="padding: 10px; text-align: right; color: #2e7d32; font-size: 13px; text-transform: uppercase;">Thành tiền</th>
                 </tr>
             </thead>
             <tbody>
@@ -125,35 +127,37 @@ export const sendOrderConfirmationEmail = async ({
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="3" style="padding: 8px; text-align: right; font-weight: bold; color: #666;">Tạm tính:</td>
-                    <td style="padding: 8px; text-align: right;">${subTotal.toLocaleString('vi-VN')} đ</td>
+                    <td colspan="3" style="padding: 10px; text-align: right; color: #666;">Tạm tính:</td>
+                    <td style="padding: 10px; text-align: right; color: #333;">${subTotal.toLocaleString('vi-VN')} đ</td>
                 </tr>
                 <tr>
-                    <td colspan="3" style="padding: 8px; text-align: right; color: #666;">Phí vận chuyển:</td>
-                    <td style="padding: 8px; text-align: right;">${shippingFee.toLocaleString('vi-VN')} đ</td>
+                    <td colspan="3" style="padding: 5px 10px; text-align: right; color: #666;">Phí vận chuyển:</td>
+                    <td style="padding: 5px 10px; text-align: right; color: #333;">${shippingFee.toLocaleString('vi-VN')} đ</td>
                 </tr>
                 ${couponAmount > 0 ? `
                 <tr>
-                    <td colspan="3" style="padding: 8px; text-align: right; color: #2e7d32;">Voucher giảm giá:</td>
-                    <td style="padding: 8px; text-align: right; color: #2e7d32;">-${couponAmount.toLocaleString('vi-VN')} đ</td>
+                    <td colspan="3" style="padding: 5px 10px; text-align: right; color: #2e7d32; font-weight: bold;">Voucher giảm giá:</td>
+                    <td style="padding: 5px 10px; text-align: right; color: #2e7d32; font-weight: bold;">-${couponAmount.toLocaleString('vi-VN')} đ</td>
                 </tr>
                 ` : ''}
-                <tr style="background-color: #f2f2f2;">
-                    <td colspan="3" style="padding: 12px; text-align: right; font-weight: bold; font-size: 16px;">TỔNG CỘNG:</td>
-                    <td style="padding: 12px; text-align: right; font-weight: bold; font-size: 18px; color: #d32f2f;">${Number(totalAmount).toLocaleString('vi-VN')} đ</td>
+                <tr style="background-color: #f1f8e9;">
+                    <td colspan="3" style="padding: 15px; text-align: right; font-weight: bold; font-size: 16px; color: #1b5e20;">TỔNG CỘNG:</td>
+                    <td style="padding: 15px; text-align: right; font-weight: bold; font-size: 20px; color: #1b5e20;">${Number(totalAmount).toLocaleString('vi-VN')} đ</td>
                 </tr>
             </tfoot>
             </table>
 
-            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px;">
-                <p style="margin: 0;"><strong>Địa chỉ giao hàng:</strong></p>
-                <p style="margin: 5px 0 0 0; color: #555;">${address}</p>
+            <div style="background-color: #f1f8e9; padding: 15px; border-radius: 6px; border: 1px dashed #2e7d32;">
+                <p style="margin: 0; color: #2e7d32; font-size: 14px; text-transform: uppercase; font-weight: bold;">📍 Địa chỉ nhận hàng</p>
+                <p style="margin: 8px 0 0 0; color: #333; font-size: 15px;">${address}</p>
             </div>
             
-            <p style="margin-top: 30px; font-size: 13px; color: #888; text-align: center;">
-                Nếu có thắc mắc, vui lòng liên hệ hotline 1900 xxxx.<br/>
-                Đây là email tự động, vui lòng không trả lời.
-            </p>
+            <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; text-align: center;">
+                <p style="font-size: 13px; color: #888;">
+                    Mọi thắc mắc xin liên hệ Hotline: <strong style="color: #2e7d32;">1900 xxxx</strong><br/>
+                    <span style="font-size: 12px; font-style: italic;">(Email này được gửi tự động từ hệ thống Nông Sản Store)</span>
+                </p>
+            </div>
         </div>
       </div>
     `,
@@ -225,7 +229,6 @@ export const sendOrderStatusUpdateEmail = async ({
         ` : ''}
         
         <p style="margin-top: 20px;">Cảm ơn bạn đã mua sắm tại Nông Sản Việt!</p>
-        
         
 
         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">

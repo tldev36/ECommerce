@@ -6,7 +6,7 @@ import { Category } from "@/types/category";
 import { Product } from "@/types/product";
 import {
    Package, Archive, Tag, UploadCloud,
-   Save, Loader2, ImagePlus
+   Save, Loader2, ImagePlus, FileText // Thêm icon FileText
 } from "lucide-react";
 import * as z from "zod";
 import { useForm } from "react-hook-form";
@@ -21,6 +21,7 @@ const productSchema = z.object({
    unit: z.string().optional().default(""),
    category_id: z.coerce.string().min(1, "Vui lòng chọn danh mục"),
    image: z.string().optional().nullable(),
+   description: z.string().optional().nullable(), // --- THÊM TRƯỜNG MÔ TẢ ---
    stock_quantity: z.coerce.number().default(0),
    min_stock_level: z.coerce.number().default(0),
 
@@ -58,6 +59,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
          category_id: "", stock_quantity: 0, min_stock_level: 0,
          is_new: false, is_best_seller: false, featured: false, is_active: true,
          image: null,
+         description: "", // --- THÊM DEFAULT VALUE ---
       },
    });
 
@@ -81,6 +83,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
             featured: Boolean(editing.featured),
             is_active: editing.is_active !== undefined ? Boolean(editing.is_active) : true,
             image: editing.image || null,
+            description: editing.description || "", // --- LOAD DỮ LIỆU CŨ ---
          });
 
          if (editing.image) {
@@ -93,8 +96,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
       axios.get<Category[]>("/api/categories")
          .then((res) => setCategories(res.data))
          .catch((err) => {
-             console.error("Lỗi tải danh mục:", err);
-             // Không cần alert lỗi tải danh mục để tránh làm phiền người dùng lúc mới vào
+            console.error("Lỗi tải danh mục:", err);
          });
    }, []);
 
@@ -150,18 +152,12 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
          if (editing) {
             // --- CẬP NHẬT ---
             res = await axios.put<Product>(`/api/admin/products/${editing.id}`, payload);
-            
-            // 🔥 SỬ DỤNG ALERT
             alert("Cập nhật thành công");
-            
             onUpdate?.(res.data);
          } else {
             // --- THÊM MỚI ---
             res = await axios.post<Product>(`/api/admin/products`, payload);
-            
-            // 🔥 SỬ DỤNG ALERT
             alert("Thêm sản phẩm thành công");
-            
             onAdd?.(res.data);
          }
 
@@ -183,7 +179,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 relative">
          
          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Ảnh */}
+            {/* CỘT 1: Ảnh */}
             <div className="md:col-span-1 space-y-4">
                <label className="block text-sm font-medium text-gray-700">Ảnh sản phẩm</label>
                <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 relative h-64 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 transition group">
@@ -195,7 +191,6 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                   />
                   {preview ? (
                      <div className="relative w-full h-full">
-                        {/* Sử dụng thẻ img thay vì Image của Next.js để tránh lỗi trong preview */}
                         <img 
                            src={preview} 
                            alt="preview" 
@@ -214,8 +209,9 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                </div>
             </div>
 
-            {/* Các input khác */}
+            {/* CỘT 2: Thông tin chính */}
             <div className="md:col-span-2 space-y-4">
+               {/* Tên SP */}
                <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Tên sản phẩm <span className="text-red-500">*</span></label>
                   <input
@@ -226,6 +222,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                   {errors.name && <p className="text-red-500 text-xs">{errors.name.message}</p>}
                </div>
 
+               {/* Giá */}
                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                      <label className="text-sm font-medium text-gray-700">Giá bán <span className="text-red-500">*</span></label>
@@ -238,6 +235,7 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                   </div>
                </div>
 
+               {/* Danh mục & Đơn vị */}
                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                      <label className="text-sm font-medium text-gray-700">Danh mục <span className="text-red-500">*</span></label>
@@ -259,6 +257,19 @@ export default function ProductForm({ onAdd, onUpdate, editing }: ProductFormPro
                      <label className="text-sm font-medium text-gray-700">Đơn vị</label>
                      <input {...register("unit")} className="w-full px-4 py-2.5 rounded-xl border border-gray-300 outline-none" placeholder="Cái..." />
                   </div>
+               </div>
+
+               {/* --- PHẦN MỚI THÊM: MÔ TẢ --- */}
+               <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                     <FileText className="w-4 h-4" /> Mô tả sản phẩm
+                  </label>
+                  <textarea
+                     {...register("description")}
+                     rows={4}
+                     className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                     placeholder="Nhập mô tả chi tiết về sản phẩm..."
+                  />
                </div>
             </div>
          </div>

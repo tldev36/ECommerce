@@ -4,8 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import { 
   Package, Plus, Edit, Trash2, Eye, 
-  Search, Filter, ChevronLeft, ChevronRight, Loader2,
-  BarChart2, RefreshCw // ➕ Thêm icon mới
+  Search, Filter, ChevronLeft, ChevronRight, Loader2 
 } from "lucide-react";
 
 import Modal from "@/components/common/Modal";
@@ -19,10 +18,6 @@ import { Toaster, toast } from "react-hot-toast";
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // State cho nút tính toán popularity
-  const [isCalculating, setIsCalculating] = useState(false);
-
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   
@@ -36,47 +31,24 @@ export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   // 🟢 Load danh sách sản phẩm
-  const fetchProducts = async () => {
-    try {
-      // setLoading(true); // Không set loading true để tránh nháy trang khi reload ngầm
-      const res = await axios.get<ProductApi[]>("/api/admin/products");
-      const formatted = res.data.map((p) => ({
-        ...p,
-        created_at: p.created_at ? new Date(p.created_at) : undefined,
-        updated_at: p.updated_at ? new Date(p.updated_at) : undefined,
-      }));
-      setProducts(formatted);
-    } catch (err) {
-      console.error("Lỗi khi tải sản phẩm:", err);
-      toast.error("Không tải được danh sách sản phẩm");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await axios.get<ProductApi[]>("/api/admin/products");
+        const formatted = res.data.map((p) => ({
+          ...p,
+          created_at: p.created_at ? new Date(p.created_at) : undefined,
+          updated_at: p.updated_at ? new Date(p.updated_at) : undefined,
+        }));
+        setProducts(formatted);
+      } catch (err) {
+        console.error("Lỗi khi tải sản phẩm:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchProducts();
   }, []);
-
-  // 🔄 Hàm xử lý tính toán Popularity (MỚI)
-  const handleCalculatePopularity = async () => {
-    if (isCalculating) return;
-    setIsCalculating(true);
-    const toastId = toast.loading("Đang tính toán độ phổ biến...");
-
-    try {
-      await axios.post("/api/admin/products/calculate-popularity");
-      toast.success("Đã cập nhật độ phổ biến thành công!", { id: toastId });
-      
-      // Load lại danh sách để thấy số liệu mới (nếu bạn có hiển thị cột Sold)
-      await fetchProducts(); 
-    } catch (error) {
-      console.error(error);
-      toast.error("Lỗi khi tính toán!", { id: toastId });
-    } finally {
-      setIsCalculating(false);
-    }
-  };
 
   // 🔍 Logic Lọc & Phân trang
   const filteredProducts = useMemo(() => {
@@ -103,10 +75,10 @@ export default function ProductsPage() {
     try {
       await axios.delete(`/api/admin/products/${id}`);
       setProducts((prev) => prev.filter((p) => p.id !== id));
-      toast.success("Đã xóa sản phẩm thành công!");
+      alert("Đã xóa sản phẩm thành công!");
     } catch (error) {
       console.error("Lỗi khi xóa sản phẩm:", error);
-      toast.error("Không thể xóa sản phẩm!");
+      alert("Không thể xóa sản phẩm!");
     }
   };
 
@@ -120,13 +92,14 @@ export default function ProductsPage() {
     };
     setProducts((prev) => [newProduct, ...prev]);
     setShowModal(false);
-    toast.success("Thêm sản phẩm thành công");
   };
 
   // ✏️ Cập nhật sản phẩm
   const handleUpdate = (updatedProduct: Product) => {
     setProducts((prev) => prev.map((p) => {
        if (p.id === updatedProduct.id) {
+          // Giữ lại các trường quan trọng nếu API trả về thiếu (ví dụ created_at)
+          // Đồng thời cập nhật category_id mới nhất
           return {
              ...p,
              ...updatedProduct,
@@ -137,12 +110,10 @@ export default function ProductsPage() {
     }));
     setShowModal(false);
     setEditing(null);
-    toast.success("Cập nhật thành công");
   };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <Toaster position="top-right" />
       
       {/* 🔹 Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -154,35 +125,16 @@ export default function ProductsPage() {
           <p className="text-gray-500 mt-1 text-sm">Quản lý kho hàng và danh sách sản phẩm</p>
         </div>
         
-        <div className="flex gap-3">
-            {/* 🔘 Nút Tính Popularity MỚI */}
-            <button
-              onClick={handleCalculatePopularity}
-              disabled={isCalculating}
-              className={`flex items-center gap-2 px-4 py-2.5 text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition font-medium ${isCalculating ? 'opacity-70 cursor-wait' : ''}`}
-              title="Tính toán lại độ phổ biến dựa trên tương tác người dùng"
-            >
-              {isCalculating ? (
-                 <RefreshCw className="w-5 h-5 animate-spin" />
-              ) : (
-                 <BarChart2 className="w-5 h-5" />
-              )}
-              <span className="hidden sm:inline">Cập nhật Popularity</span>
-            </button>
-
-            {/* 🔘 Nút Thêm Mới */}
-            <button
-              onClick={() => {
-                setEditing(null);
-                setShowModal(true);
-              }}
-              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-200 font-medium"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline">Thêm sản phẩm</span>
-              <span className="sm:hidden">Thêm</span>
-            </button>
-        </div>
+        <button
+          onClick={() => {
+            setEditing(null);
+            setShowModal(true);
+          }}
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-200 font-medium"
+        >
+          <Plus className="w-5 h-5" />
+          <span>Thêm sản phẩm</span>
+        </button>
       </div>
 
       {/* 🔹 Main Content Card */}
@@ -214,9 +166,7 @@ export default function ProductsPage() {
                 <th className="py-4 px-6">Tên sản phẩm</th>
                 <th className="py-4 px-6">Danh mục</th>
                 <th className="py-4 px-6 text-right">Giá bán</th>
-                {/* Bạn có thể thêm cột Sold ở đây nếu muốn hiển thị */}
-                {/* <th className="py-4 px-6 text-center">Đã bán (Popularity)</th> */}
-                {/* <th className="py-4 px-6 text-center">Trạng thái</th> */}
+                <th className="py-4 px-6 text-center">Trạng thái</th>
                 <th className="py-4 px-6 text-center">Tồn kho</th>
                 <th className="py-4 px-6 text-right">Hành động</th>
               </tr>
@@ -226,12 +176,12 @@ export default function ProductsPage() {
                 <tr><td colSpan={8} className="py-12 text-center text-gray-500"><Loader2 className="w-8 h-8 animate-spin mx-auto mb-2"/>Đang tải dữ liệu...</td></tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                    <td colSpan={8} className="py-12 text-center text-gray-400 bg-gray-50/30">
-                       <div className="flex flex-col items-center justify-center">
-                          <div className="bg-gray-100 p-3 rounded-full mb-3"><Filter className="w-6 h-6 text-gray-300" /></div>
-                          <p>Không tìm thấy sản phẩm nào</p>
-                       </div>
-                    </td>
+                   <td colSpan={8} className="py-12 text-center text-gray-400 bg-gray-50/30">
+                      <div className="flex flex-col items-center justify-center">
+                         <div className="bg-gray-100 p-3 rounded-full mb-3"><Filter className="w-6 h-6 text-gray-300" /></div>
+                         <p>Không tìm thấy sản phẩm nào</p>
+                      </div>
+                   </td>
                 </tr>
               ) : (
                 paginatedProducts.map((p, index) => (
@@ -256,32 +206,27 @@ export default function ProductsPage() {
                     </td>
 
                     <td className="py-4 px-6">
-                        <span className="font-semibold text-gray-800 line-clamp-1" title={p.name}>{p.name}</span>
+                       <span className="font-semibold text-gray-800 line-clamp-1" title={p.name}>{p.name}</span>
                     </td>
 
                     <td className="py-4 px-6 text-gray-600">
-                        <span className="bg-gray-100 px-2 py-1 rounded text-xs border border-gray-200">
+                       <span className="bg-gray-100 px-2 py-1 rounded text-xs border border-gray-200">
                           {p.categories?.name || "Chưa phân loại"}
-                        </span>
+                       </span>
                     </td>
 
                     <td className="py-4 px-6 text-right font-medium text-emerald-600">
-                        {Number(p.price).toLocaleString("vi-VN")}₫
+                       {Number(p.price).toLocaleString("vi-VN")}₫
                     </td>
-                    
-                    {/* Nếu muốn hiển thị cột Sold */}
-                    {/* <td className="py-4 px-6 text-center font-bold text-blue-600">
-                        {p.sold || 0}
-                    </td> */}
-
-                    {/* <td className="py-4 px-6 text-center">
-                      <ProductStatusIcons product={p} />
-                    </td> */}
 
                     <td className="py-4 px-6 text-center">
-                        <span className={`font-bold ${p.stock_quantity ?? 0 > 0 ? 'text-gray-700' : 'text-red-500'}`}>
+                      <ProductStatusIcons product={p} />
+                    </td>
+
+                    <td className="py-4 px-6 text-center">
+                       <span className={`font-bold ${p.stock_quantity ?? 0 > 0 ? 'text-gray-700' : 'text-red-500'}`}>
                           {p.stock_quantity}
-                        </span>
+                       </span>
                     </td>
 
                     <td className="py-4 px-6 text-right">
@@ -348,6 +293,8 @@ export default function ProductsPage() {
         )}
 
       </div>
+      <Toaster position="top-right" />
+
 
       {selectedProduct && (
         <ProductDetailModal
@@ -368,7 +315,7 @@ export default function ProductsPage() {
           setEditing(null);
         }}
         title={editing ? "Cập nhật sản phẩm" : "Thêm sản phẩm mới"}
-        width="max-w-4xl"
+        width="max-w-4xl" // Modal rộng hơn để chứa form sản phẩm
       >
         <ProductForm editing={editing} onAdd={handleAdd} onUpdate={handleUpdate} />
       </Modal>

@@ -2,51 +2,43 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import axios from "axios";
 
 export default function ZaloPayCallbackPage() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"pending" | "success" | "failed">("pending");
   const { clearCart } = useCart();
   const router = useRouter();
+
   useEffect(() => {
-    const handleCallback = async () => {
-      if (!searchParams) {
-        setStatus("failed");
-        return;
-      }
+    if (!searchParams) {
+      setStatus("failed");
+      return;
+    }
 
-      const appTransId = searchParams.get("apptransid");
-      const paymentStatus = searchParams.get("status"); // 1 = thành công
+    const appTransId = searchParams.get("apptransid");
+    const paymentStatus = searchParams.get("status"); // 1 = thành công
 
-      if (!appTransId) {
-        setStatus("failed");
-        return;
-      }
+    if (!appTransId) {
+      setStatus("failed");
+      return;
+    }
 
-      if (paymentStatus === "1") {
-        setStatus("success");
+    if (paymentStatus === "1") {
+      setStatus("success");
 
-        // tạo hóa đơn giao hàng nhanh
-        await axios.get("/api/zalopay/callback", {
-          params: {
-            apptransid: appTransId,
-          }
-        });
+      // tạo hóa đơn giao hàng nhanh
+      
 
-        // ✅ Xóa giỏ hàng
-        clearCart();
+      // ✅ Xóa giỏ hàng
+      clearCart();
 
-        // ⏩ Redirect sau 1s để tránh loop
-        setTimeout(() => {
-          router.push("/customer/home");
-        }, 500);
-      } else {
-        setStatus("failed");
-      }
-    };
-
-    handleCallback();
+      // ⏩ Redirect sau 1s để tránh loop
+      setTimeout(() => {
+        router.push("/customer/home");
+      }, 500);
+    } else {
+      setStatus("failed");
+    }
   }, []); // ❌ KHÔNG để searchParams trong dependency
 
 

@@ -7,13 +7,13 @@ import { deleteImageFile } from "@/utils/deleteImageFile";
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
     const id = Number(params.id);
-    const { name, image, status } = await req.json();
+    const { name, status } = await req.json();
     const slug = slugify(name);
 
     // Lấy thông tin cũ để kiểm tra xem có ảnh cần xóa không
     const oldCategory = await prisma.categories.findUnique({
       where: { id },
-      select: { image: true },
+      
     });
 
     // kiểm tra trùng tên
@@ -34,13 +34,11 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     // Cập nhật DB
     const updated = await prisma.categories.update({
       where: { id },
-      data: { name, slug, image, status, updated_at: new Date() },
+      data: { name, slug, status, updated_at: new Date() },
     });
 
     // Nếu đổi ảnh mới -> xóa ảnh cũ
-    if (oldCategory?.image && oldCategory.image !== image) {
-      deleteImageFile("categories", oldCategory.image);
-    }
+  
 
     return NextResponse.json(updated);
   } catch (error) {

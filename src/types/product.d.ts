@@ -25,6 +25,11 @@ export interface ProductApi {
   updated_at?: string;
   categories?: Category | null;
   description?: string | null;
+  tags: string | null;
+  region: string | null;
+  description: string | null;
+  weight_gram: number;
+  popularity?: number;
 }
 
 /**

@@ -1,27 +1,96 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Product } from "@/types/product";
 import { useCart } from "@/context/CartContext";
 import { ShoppingCart, Heart, Plus } from "lucide-react";
+import axios from "axios";
 
 interface ProductCardProps {
   product: Product;
+}
+
+interface User {
+  id: string;
+  email: string;
+  role?: string;
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
   const router = useRouter();
   const { addItem } = useCart();
   const [imgSrc, setImgSrc] = useState(`/images/products/${product?.image}`);
-  const [isFavorite, setIsFavorite] = useState(false);
+  // const [isFavorite, setIsFavorite] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [hasLoggedView, setHasLoggedView] = useState(false);
 
   // Tính giá
   const productPrice = Number(product.price) || 0;
   const finalPrice = product.discount
     ? productPrice - (productPrice * product.discount) / 100
     : productPrice;
+
+  // 🟢 Khi load component → lấy thông tin user
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        const data = await res.json();
+        if (data?.user?.id) {
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        console.error("Lỗi khi lấy user:", err);
+        setUser(null);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  // 🟢 Ghi log xem sản phẩm nếu có user
+  const hasLoggedRef = useRef(false);
+
+  useEffect(() => {
+    const logView = async () => {
+      if (!user?.id || !product.id) return;
+
+      if (hasLoggedRef.current) return; // chặn tuyệt đối
+      hasLoggedRef.current = true;
+
+      // await axios.post("/api/interactions", {
+      //   userId: user.id,
+      //   productId: product.id,
+      //   interactionType: "view",
+      // });
+    };
+
+    logView();
+  }, [user, product.id]);
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addItem(product);
+
+    if (user?.id) {
+      try {
+        await axios.post("/api/interactions", {
+          userId: user.id,
+          productId: product.id,
+          interactionType: "cart",
+        });
+      } catch (err) {
+        console.error("Lỗi ghi log add to cart:", err);
+      }
+    }
+
+    alert(`Đã thêm ${product.name} vào giỏ hàng!`);
+  };
 
   return (
     <div
@@ -109,10 +178,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           {/* Add Cart Button */}
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              addItem(product);
-            }}
+            onClick={handleAddToCart}
             className="w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm hover:shadow-md active:scale-95"
             title="Thêm vào giỏ"
           >

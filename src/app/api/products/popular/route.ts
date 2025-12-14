@@ -14,6 +14,7 @@ export async function GET() {
         image: true,
         price: true,
         unit: true,
+        discount: true
       },
     });
 

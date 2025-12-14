@@ -21,19 +21,14 @@ export async function GET(req: Request) {
       where: { order_code: app_trans_id },
       data: { payment_status: "PAID" },
       include: {
-
+        order_items: true,
         users: true,
-        order_items: {
-          include: {
-            product: true, 
-          },
-        },
       },
     });
 
     // =============== PREPARE EMAIL DATA =============== //
     const emailItemsData = order.order_items.map((item: any) => ({
-      name: item.product.name,
+      name: item.name,
       quantity: item.quantity,
       price: Number(item.price),
     }));

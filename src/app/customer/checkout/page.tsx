@@ -111,34 +111,34 @@ export default function CheckoutPage() {
       }
 
       setIsRefreshing(true);
-      
+
       const promises = cart.map(async (item) => {
-          if (!item.product_id) return null;
-          try {
-              // Gọi API với tham số nocache để ép lấy dữ liệu mới
-              const res = await fetch(`/api/cart/products/${item.product_id}`, {
-                  cache: 'no-store',
-                  headers: { 'Cache-Control': 'no-cache' }
-              });
-              
-              if (!res.ok) return null;
-              const data = await res.json();
-              return data.product || data.data || data; 
-          } catch (err) {
-              console.error(`Lỗi cập nhật giá SP ${item.product_id}:`, err);
-              return null;
-          }
+        if (!item.product_id) return null;
+        try {
+          // Gọi API với tham số nocache để ép lấy dữ liệu mới
+          const res = await fetch(`/api/cart/products/${item.product_id}`, {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+          });
+
+          if (!res.ok) return null;
+          const data = await res.json();
+          return data.product || data.data || data;
+        } catch (err) {
+          console.error(`Lỗi cập nhật giá SP ${item.product_id}:`, err);
+          return null;
+        }
       });
 
       const results = await Promise.all(promises);
-      
+
       const detailsMap: Record<number, any> = {};
       results.forEach((prod) => {
-          if (prod && prod.id) {
-              detailsMap[prod.id] = prod; 
-          }
+        if (prod && prod.id) {
+          detailsMap[prod.id] = prod;
+        }
       });
-      
+
       setProductDetails(detailsMap);
       setIsRefreshing(false);
     };
@@ -149,28 +149,28 @@ export default function CheckoutPage() {
   // 5. 🔥 HỢP NHẤT DỮ LIỆU (Merge Cart cũ + Giá mới)
   const displayCart = useMemo(() => {
     return cart.map(item => {
-        const freshData = productDetails[Number(item.product_id)];
-        
-        // Logic ưu tiên lấy dữ liệu mới từ server
-        let freshDiscount = 0;
-        let freshPrice = Number(item.price);
-        
-        if (freshData) {
-            freshPrice = Number(freshData.price);
-            freshDiscount = Number(freshData.discount || freshData.dicount_percent || 0);
-        } else {
-             // Fallback nếu chưa load xong
-             freshDiscount = Number(item.discount || item.discount || 0);
-        }
+      const freshData = productDetails[Number(item.product_id)];
 
-        return {
-            ...item,
-            price: freshPrice,
-            discount: freshDiscount,
-            name: freshData ? freshData.name : item.name,
-            image: freshData ? freshData.image : item.image,
-            unit: freshData ? freshData.unit : item.unit, // Cập nhật cả đơn vị để tính trọng lượng
-        };
+      // Logic ưu tiên lấy dữ liệu mới từ server
+      let freshDiscount = 0;
+      let freshPrice = Number(item.price);
+
+      if (freshData) {
+        freshPrice = Number(freshData.price);
+        freshDiscount = Number(freshData.discount || freshData.dicount_percent || 0);
+      } else {
+        // Fallback nếu chưa load xong
+        freshDiscount = Number(item.discount || item.discount || 0);
+      }
+
+      return {
+        ...item,
+        price: freshPrice,
+        discount: freshDiscount,
+        name: freshData ? freshData.name : item.name,
+        image: freshData ? freshData.image : item.image,
+        unit: freshData ? freshData.unit : item.unit, // Cập nhật cả đơn vị để tính trọng lượng
+      };
     });
   }, [cart, productDetails]);
 
@@ -302,6 +302,27 @@ export default function CheckoutPage() {
       if (res.data.success) {
         setOrderData(res.data.order);
         alert("🎉 Đặt hàng thành công!");
+
+        // --- ĐOẠN CODE SỬA ĐỔI BẮT ĐẦU ---
+        try {
+          // Kiểm tra xem có giỏ hàng không
+          if (cart && cart.length > 0) {
+            // Dùng Promise.all để gửi request song song (nhanh hơn vòng lặp for thường)
+            await Promise.all(cart.map((item) => {
+              return axios.post("/api/interactions", {
+                userId: user.id,
+                productId: item.id, // ⚠️ Lưu ý: Kiểm tra kỹ là item.id hay item.product_id trong biến cart của bạn
+                interactionType: "buy",
+                interactionWeight: 1 // Mách nhỏ: Mua hàng nên cho điểm cao (ví dụ 5) để gợi ý tốt hơn
+              });
+            }));
+          }
+        } catch (err) {
+          console.error("Lỗi lưu tương tác mua hàng:", err);
+          // Không chặn luồng chính, lỗi lưu interaction thì vẫn cho qua trang chủ
+        }
+        // --- ĐOẠN CODE SỬA ĐỔI KẾT THÚC ---
+
         clearCart();
         router.push("/customer/home");
       } else {

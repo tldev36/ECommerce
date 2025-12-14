@@ -22,8 +22,8 @@ const MENU_ITEMS = [
   // { name: "Người dùng", icon: faUsers, path: "/admin/users" },
   { name: "Đơn hàng", icon: faBox, path: "/admin/orders" },
   { name: "Giảm giá", icon: faTicket, path: "/admin/coupons" },
-  // { name: "Thống kê", icon: faCog, path: "/admin/statistics" },
-  { name: "Thống kê", icon: faChartArea, path: "/admin/demochart" },
+  { name: "Thống kê", icon: faChartArea, path: "/admin/statistics" },
+  // { name: "Thống kê", icon: faChartArea, path: "/admin/demochart" },
 
 ];
 

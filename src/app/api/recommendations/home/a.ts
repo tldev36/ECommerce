@@ -1,167 +1,146 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 
-const SECRET = process.env.JWT_SECRET || "supersecret";
-
-// Chuẩn hóa field thành mảng string
-function normalizeArray(field: unknown): string[] {
-  if (Array.isArray(field)) return field as string[];
-  if (typeof field === "string") return field.split(",").map((s) => s.trim());
-  return [];
+interface RecommendationResult {
+  product: {
+    id: number;
+    name: string;
+    image: string;
+    price: number;
+    unit: string;
+    is_active?: boolean;
+    discount?: number;
+    is_new?: boolean;
+    short?: string | null;
+  };
+  score: number;
 }
 
-export async function GET() {
-  try {
-    console.log("===== 🟦 API Recommendation Triggered =====");
 
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
+// ---- Tính Jaccard similarity giữa 2 array ----
+function jaccardSimilarity(a: string[], b: string[]): number {
+  const setA = new Set(a);
+  const setB = new Set(b);
+  const intersection = new Set([...setA].filter(x => setB.has(x)));
+  const union = new Set([...setA, ...setB]);
+  return union.size === 0 ? 0 : intersection.size / union.size;
+}
 
-    let user: { id: number; email: string; role?: string } | null = null;
+// ---- Chuẩn hóa product thành vector tags + region ----
+function getProductFeatures(product: any): string[] {
+  return [
+    ...(product.tags || []),
+    ...(product.region || [])
+  ];
+}
 
-    if (token) {
-      try {
-        user = jwt.verify(token, SECRET) as any;
-        console.log("🟩 User decoded:", user);
-      } catch {
-        console.log("🟥 Token invalid → user = null");
-        user = null;
-      }
-    } else {
-      console.log("🟥 No token found → user not logged in");
-    }
+// ---- Hybrid Recommendation ----
+async function getRecommendations(userId: number, topK: number = 10): Promise<RecommendationResult[]> {
+  const productsData = await prisma.products.findMany({ include: { categories: true } });
+  const interactions = await prisma.user_product_interactions.findMany({ where: { user_id: userId } });
 
-    // ----------------------------------------------------------
-    // CASE 1: User NOT logged in → return popular products
-    // ----------------------------------------------------------
-    if (!user) {
-      console.log("🟧 Guest user → loading popular products...");
-      const popularProducts = await prisma.products.findMany({
-        where: { is_active: true },
-        orderBy: { popularity: "desc" },
-        take: 10,
-        include: { categories: true },
-      });
+  console.log(`🔍 User ${userId} has ${interactions.length} interactions.`);
 
-      console.log("🟩 Popular products:", JSON.stringify(popularProducts, null, 2));
-      return NextResponse.json(popularProducts);
-    }
-
-    // ----------------------------------------------------------
-    // User logged in → Load interaction history
-    // ----------------------------------------------------------
-    console.log("🟦 Fetching interactions for user:", user.id);
-
-    const interactions = await prisma.user_product_interactions.findMany({
-      where: { user_id: user.id },
-      include: { products: true },
-      orderBy: { created_at: "desc" },
-      take: 10,
-    });
-
-    console.log("🟩 User interactions:", JSON.stringify(interactions, null, 2));
-
-    // ----------------------------------------------------------
-    // Fallback if no interactions
-    // ----------------------------------------------------------
-    if (interactions.length === 0) {
-      console.log("🟧 User has no interactions → fallback popular products");
-      const fallback = await prisma.products.findMany({
-        where: { is_active: true },
-        orderBy: { popularity: "desc" },
-        take: 10,
-        include: { categories: true },
-      });
-
-      console.log("🟩 Fallback products:", JSON.stringify(fallback, null, 2));
-      return NextResponse.json(fallback);
-    }
-
-    // ----------------------------------------------------------
-    // Build tag/region profile
-    // ----------------------------------------------------------
-    const userTags = new Set<string>();
-    const userRegions = new Set<string>();
-
-    interactions.forEach((i) => {
-      const p = i.products;
-      const tags = normalizeArray(p.tags);
-      const regions = normalizeArray(p.region);
-
-      tags.forEach((t) => userTags.add(t));
-      regions.forEach((r) => userRegions.add(r));
-    });
-
-    console.log("🟦 User tag profile:", [...userTags]);
-    console.log("🟦 User region profile:", [...userRegions]);
-
-    // ----------------------------------------------------------
-    // Get all products
-    // ----------------------------------------------------------
-    const allProducts = await prisma.products.findMany({
-      where: { is_active: true },
-    });
-
-    console.log("🟩 Total active products:", allProducts.length);
-
-    // ----------------------------------------------------------
-    // Score products
-    // ----------------------------------------------------------
-    const scoredProducts = allProducts
-      .map((p) => {
-        const tags = normalizeArray(p.tags);
-        const regions = normalizeArray(p.region);
-
-        const tagScore =
-          tags.filter((t) => userTags.has(t)).length / (tags.length || 1);
-        const regionScore =
-          regions.filter((r) => userRegions.has(r)).length / (regions.length || 1);
-        const popularityScore = Math.min((Number(p.popularity) || 0) / 10, 1);
-
-        const score = tagScore * 0.5 + regionScore * 0.3 + popularityScore * 0.2;
-
-        return { id: p.id, score };
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8);
-
-    console.log("🟩 TOP scored product IDs:", scoredProducts);
-
-    const ids = scoredProducts.map((p) => p.id);
-
-    // ----------------------------------------------------------
-    // Load full products data for the IDs
-    // ----------------------------------------------------------
-    const fullProducts = await prisma.products.findMany({
-      where: { id: { in: ids } },
-      include: {
-        categories: true, // thêm luôn nếu bạn muốn đầy đủ thông tin
+  if (!interactions.length) {
+    return productsData.slice(0, topK).map(p => ({
+      product: {
+        id: p.id,
+        name: p.name,
+        image: p.image,
+        price: Number(p.price),
+        unit: p.unit,
+        is_active: p.is_active ?? undefined,
+        discount: p.discount ? Number(p.discount) : undefined,
+        is_new: p.is_new ?? undefined,
+        short: p.short ?? null,
       },
+      score: 0
+    }));
+
+  }
+
+  const interactedProductIds = interactions.map(i => i.product_id);
+
+  // --- Content-based score
+  const contentScores = new Map<number, number>();
+  const featuresMap: Record<number, string[]> = {};
+  productsData.forEach(p => {
+    featuresMap[p.id] = getProductFeatures(p);
+  });
+
+  interactedProductIds.forEach(pid => {
+    const vecA = featuresMap[pid];
+    productsData.forEach(p => {
+      if (interactedProductIds.includes(p.id)) return;
+      const vecB = featuresMap[p.id];
+      const score = jaccardSimilarity(vecA, vecB);
+      contentScores.set(p.id, Math.max(contentScores.get(p.id) || 0, score));
     });
+  });
 
-    console.log("🟦 Full products from DB:", JSON.stringify(fullProducts, null, 2));
+  // --- Collaborative Filtering
+  const allInteractions = await prisma.user_product_interactions.findMany();
+  const productUserMap: Record<number, Record<number, number>> = {};
+  allInteractions.forEach(i => {
+    if (!productUserMap[i.product_id]) productUserMap[i.product_id] = {};
+    productUserMap[i.product_id][i.user_id] = Number(i.interaction_weight);
+  });
 
-    // ----------------------------------------------------------
-    // Merge score vào product
-    // ----------------------------------------------------------
-    const merged = fullProducts.map((p) => {
-      const score = scoredProducts.find((s) => s.id === p.id)?.score || 0;
-      return { ...p, score };
-    });
+  const cfScores = new Map<number, number>();
+  interactedProductIds.forEach(pid => {
+    const targetUsers = productUserMap[pid];
+    for (const [otherIdStr, users] of Object.entries(productUserMap)) {
+      const otherId = Number(otherIdStr);
+      if (interactedProductIds.includes(otherId) || otherId === pid) continue;
 
-    // sort theo score giảm dần
-    merged.sort((a, b) => b.score - a.score);
+      const dot = Object.keys(targetUsers).reduce((sum, uid) => sum + (targetUsers[Number(uid)] || 0) * (users[Number(uid)] || 0), 0);
+      const magA = Math.sqrt(Object.values(targetUsers).reduce((s, w) => s + w * w, 0));
+      const magB = Math.sqrt(Object.values(users).reduce((s, w) => s + w * w, 0));
+      const sim = dot / (magA * magB || 1);
+      if (sim > 0) cfScores.set(otherId, Math.max(cfScores.get(otherId) || 0, sim));
+    }
+  });
 
-    console.log("🟩 Final recommendation:", JSON.stringify(merged, null, 2));
+  // --- Hybrid score + full product info
+  const recommendations: RecommendationResult[] = productsData
+    .filter(p => !interactedProductIds.includes(p.id))
+    .map(p => ({
+      product: {
+        id: p.id,
+        name: p.name,
+        short: p.short ?? null,
+        image: p.image,
+        price: Number(p.price),
+        unit: p.unit,
+        is_active: p.is_active !== null ? p.is_active : undefined,
+        discount: p.discount !== null && p.discount !== undefined ? Number(p.discount) : undefined,
+        is_new: p.is_new !== null ? p.is_new : undefined,
+      },
+      score: 0.6 * (contentScores.get(p.id) || 0) + 0.4 * (cfScores.get(p.id) || 0)
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
 
-    return NextResponse.json(merged);
-  } catch (error) {
-    console.error("🔥 Recommendation error:", error);
-    return NextResponse.json(
-      { error: "Failed to load recommendations" },
-      { status: 500 }
-    );
+  return recommendations;
+}
+
+
+// ---- Route handler ----
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ user_id: string }> }
+  // req: Request, ctx: { params: { user_id: string } }
+) {
+  // const userId = Number(ctx.params.user_id);
+  const { user_id } = await params;
+  const userId = Number(user_id);
+  if (!userId) return NextResponse.json({ message: "Missing user_id" }, { status: 400 });
+
+  try {
+    const recommendations = await getRecommendations(userId);
+    return NextResponse.json({ user_id: userId, recommendations });
+  } catch (err: any) {
+    console.error(err);
+    return NextResponse.json({ message: "Error generating recommendations" }, { status: 500 });
   }
 }

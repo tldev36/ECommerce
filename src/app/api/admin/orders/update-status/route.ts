@@ -6,12 +6,12 @@ import { sendOrderStatusUpdateEmail } from "@/lib/mail"; // Import hàm mới
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { orderId, newStatus } = body;
+    const { orderId, newStatus, paymentStatus } = body;
 
     // Validate cơ bản
-    if (!orderId || !newStatus) {
+    if (!orderId || !newStatus || !paymentStatus) {
       return NextResponse.json(
-        { success: false, error: "Thiếu orderId hoặc newStatus" },
+        { success: false, error: "Thiếu orderId hoặc newStatus hoặc paymentStatus" },
         { status: 400 }
       );
     }

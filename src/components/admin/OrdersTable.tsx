@@ -65,7 +65,7 @@ export default function OrdersTable({
         "Mã đơn": o.order_code,
         "Ngày tạo": formatDate(o.created_at),
         "Tổng tiền": o.amount,
-        "Trạng thái": o.status, // Thêm trạng thái vào excel nếu cần
+        // "Trạng thái": o.status, // Thêm trạng thái vào excel nếu cần
       }));
 
       const ws = XLSX.utils.json_to_sheet(data);

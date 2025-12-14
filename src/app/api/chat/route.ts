@@ -13,6 +13,7 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const message = body.message || body.question;
+        console.log("💬 User message:", message);
 
         if (!message) return NextResponse.json({ reply: "Xin chào, tôi có thể giúp gì?" });
 
@@ -40,8 +41,9 @@ export async function POST(req: Request) {
         }
         `;
 
+        console.log("🤖 Analyzing intent...");
         const analyzeRes = await ai.models.generateContent({
-            model: "gemini-2.0-flash", // Dùng bản này cho nhanh
+            model: "gemini-2.5-flash", // Dùng bản này cho nhanh  gemini-1.5-flash
             contents: analyzePrompt,
             config: { responseMimeType: "application/json" }
         });
@@ -178,7 +180,7 @@ export async function POST(req: Request) {
 
         // 🟢 BƯỚC 3: Sinh câu trả lời cuối cùng
         const replyRes = await ai.models.generateContent({
-            model: "gemini-2.0-flash",
+            model: "gemini-2.5-flash",
             contents: finalPrompt
         });
 

@@ -16,13 +16,14 @@ export interface Order {
   ward_address: string
   district_address: string
   ship_amount: number
-
+  payment_status: string
   order_items?: (Order_Item & {
     product?: {
       id: number;
       name: string;
       image: string;
       price: number;
+      quantity: number;
     };
   })[];
 }

@@ -186,9 +186,9 @@ export default function ProductDetail({ slug }: ProductDetailProps) {
                 </div>
 
                 {/* Mô tả ngắn (Giữ nguyên) */}
-                {product.short && (
+                {/* {product.short && (
                   <p className="text-gray-600 mb-6 leading-relaxed text-lg">{product.short}</p>
-                )}
+                )} */}
 
                 {/* Giá (Giữ nguyên) */}
                 <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 mb-8">
